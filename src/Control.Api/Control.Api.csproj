@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="11.11.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
     <ProjectReference Include="../Metrica.Contracts/Metrica.Contracts.csproj" />
   </ItemGroup>
 

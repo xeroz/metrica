@@ -6,9 +6,13 @@ using Control.Api.Exceptions;
 using Control.Api.Infrastructure;
 using Control.Api.Infrastructure.Messaging;
 using Control.Api.Infrastructure.Persistence;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Npgsql;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -48,7 +52,31 @@ builder.WebHost.ConfigureKestrel(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("Database")
     ?? throw new InvalidOperationException("ConnectionStrings:Database is required.");
+var jwt = builder.Configuration.GetSection("Jwt");
+var key = jwt["SigningKey"];
+if (string.IsNullOrEmpty(key) || Encoding.UTF8.GetByteCount(key) < 32)
+    throw new InvalidOperationException("Jwt:SigningKey must contain at least 32 UTF-8 bytes.");
+if (string.IsNullOrWhiteSpace(jwt["Issuer"]) || string.IsNullOrWhiteSpace(jwt["Audience"]))
+    throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience are required.");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+{
+    options.MapInboundClaims = false;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+        ValidateIssuer = true,
+        ValidIssuer = jwt["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwt["Audience"],
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+builder.Services.AddAuthorization();
 builder.Services.AddDbContextFactory<ControlDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddSingleton(NpgsqlDataSource.Create(connectionString));
+builder.Services.AddSingleton<IUserEmailRepository, UserEmailRepository>();
 builder.Services.AddHttpClient<IFileStorage, SeaweedFileStorage>(client =>
     client.BaseAddress = new Uri(builder.Configuration["SeaweedFS:FilerUrl"]
         ?? throw new InvalidOperationException("SeaweedFS:FilerUrl is required.")));
@@ -60,6 +88,8 @@ builder.Services.AddHostedService<OutboxPublisher>();
 
 var app = builder.Build();
 app.UseExceptionHandler();
+app.UseAuthentication();
+app.UseAuthorization();
 await app.Services.GetRequiredService<IStatusFileRepository>().InitializeAsync();
 
 if (app.Environment.IsDevelopment())

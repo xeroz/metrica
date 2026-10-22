@@ -8,5 +8,6 @@ internal sealed class StatusFileRow
     public EstadoCarga Status { get; set; }
     public string FileName { get; set; } = "";
     public string? Email { get; set; }
+    public long? UserId { get; set; }
     public Guid UniqueIdentifier { get; set; }
 }

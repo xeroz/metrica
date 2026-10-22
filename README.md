@@ -66,7 +66,7 @@ For local development, copy `.env.example` to `.env` and edit the credentials be
 
 The default database is `metrica_app`. Existing data in the earlier `metrica` database is left untouched. On a fresh Docker volume, PostgreSQL creates `metrica_app`; on an existing volume, create that database once before starting Control.
 
-To run the gateway without Docker, supply the same signing key used by Auth and run Auth and Control at the addresses configured in `src/Gateway/appsettings.json`:
+To run the gateway without Docker, supply the same signing key used by Auth and Control, and run Auth and Control at the addresses configured in `src/Gateway/appsettings.json`:
 
 ```bash
 Jwt__SigningKey='metrica-local-only-signing-key-at-least-32-bytes' \
@@ -76,7 +76,6 @@ Jwt__SigningKey='metrica-local-only-signing-key-at-least-32-bytes' \
 ## Next implementation steps
 
 1. Add authenticated ownership to periods and products if the API needs user-specific catalog views.
-2. Connect the authenticated user to each load instead of accepting a caller-provided email.
 
 ## Authentication and gateway
 
@@ -114,7 +113,7 @@ For uploads in Scalar, select **Cargas**, choose **Bearer** under **Authenticati
 
 ## Control upload API
 
-`POST /cargas` accepts `multipart/form-data` fields named `field` and `email`. The email is the notification recipient until authentication is implemented. The file must be a non-empty `.xlsx` of at most 5 MiB (5,242,880 bytes). The API checks the workbook container, stores it in SeaweedFS, and inserts a `StatusFile` row with state `Pending`. The upload and an outbox message are committed together; the background publisher retries delivery to RabbitMQ's durable `carga_masiva` queue.
+`POST /cargas` accepts a `multipart/form-data` field named `field`. The notification email and owner ID come from the authenticated user's current record in `users`; a missing user returns HTTP 401. The file must be a non-empty `.xlsx` of at most 5 MiB (5,242,880 bytes). The API checks the workbook container, stores it in SeaweedFS, and inserts a `StatusFile` row with state `Pending`. The upload and an outbox message are committed together; the background publisher retries delivery to RabbitMQ's durable `carga_masiva` queue.
 
 On acceptance, the response is HTTP 200:
 
@@ -126,7 +125,7 @@ On acceptance, the response is HTTP 200:
 }
 ```
 
-`GET /cargas/{uniqueIdentifier}` returns the current state and original file name, or HTTP 404 when the identifier is unknown. Both upload and status requests must go through the gateway with a valid JWT.
+`GET /cargas/{uniqueIdentifier}` returns the current state and original file name only to the user who uploaded it. Unknown identifiers, other users' loads, and loads created before ownership was recorded return HTTP 404. Both upload and status requests require a valid JWT whose user ID still exists in `users`.
 
 The Control code is split into HTTP endpoints, application logic, and infrastructure. The EF Core context, models, and migrations live in `src/Control.Api/Infrastructure/Persistence`; `Program.cs` only wires dependencies and routes. Run the focused upload checks with:
 

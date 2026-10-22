@@ -12,8 +12,6 @@ internal sealed class UploadFileRequestValidator : AbstractValidator<UploadFileR
 
     public UploadFileRequestValidator()
     {
-        RuleFor(request => request.Email)
-            .NotEmpty().EmailAddress().MaximumLength(320);
         RuleFor(request => request.Field)
             .Cascade(CascadeMode.Stop)
             .NotNull().WithMessage("The field must contain a non-empty Excel file.")

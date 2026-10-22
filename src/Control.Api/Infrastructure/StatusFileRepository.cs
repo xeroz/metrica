@@ -16,7 +16,7 @@ internal sealed class StatusFileRepository(IDbContextFactory<ControlDbContext> c
         await context.Database.MigrateAsync(cancellationToken);
     }
 
-    public async Task RegisterAsync(Guid identifier, string fileName, string storagePath, string email,
+    public async Task RegisterAsync(Guid identifier, string fileName, string storagePath, string email, long userId,
         CancellationToken cancellationToken)
     {
         try
@@ -29,6 +29,7 @@ internal sealed class StatusFileRepository(IDbContextFactory<ControlDbContext> c
                 Status = EstadoCarga.Pending,
                 FileName = fileName,
                 Email = email,
+                UserId = userId,
                 UniqueIdentifier = identifier
             };
             context.StatusFiles.Add(file);
@@ -52,13 +53,13 @@ internal sealed class StatusFileRepository(IDbContextFactory<ControlDbContext> c
         }
     }
 
-    public async Task<StatusFile?> GetAsync(Guid identifier, CancellationToken cancellationToken)
+    public async Task<StatusFile?> GetAsync(Guid identifier, long userId, CancellationToken cancellationToken)
     {
         try
         {
             await using var context = await contexts.CreateDbContextAsync(cancellationToken);
             return await context.StatusFiles.AsNoTracking()
-                .Where(file => file.UniqueIdentifier == identifier)
+                .Where(file => file.UniqueIdentifier == identifier && file.UserId == userId)
                 .Select(file => new StatusFile(file.Status, file.FileName))
                 .SingleOrDefaultAsync(cancellationToken);
         }

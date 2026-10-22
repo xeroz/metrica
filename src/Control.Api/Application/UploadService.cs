@@ -4,10 +4,11 @@ namespace Control.Api.Application;
 
 internal sealed class UploadService(IFileStorage storage, IStatusFileRepository files, ILogger<UploadService> logger)
 {
-    internal Task<StatusFile?> GetStatusAsync(Guid identifier, CancellationToken cancellationToken) =>
-        files.GetAsync(identifier, cancellationToken);
+    internal Task<StatusFile?> GetStatusAsync(Guid identifier, long userId, CancellationToken cancellationToken) =>
+        files.GetAsync(identifier, userId, cancellationToken);
 
-    internal async Task<Guid> UploadAsync(Stream content, string fileName, string email, CancellationToken cancellationToken)
+    internal async Task<Guid> UploadAsync(Stream content, string fileName, string email, long userId,
+        CancellationToken cancellationToken)
     {
         var identifier = Guid.NewGuid();
         var storagePath = $"/uploads/{identifier:N}.xlsx";
@@ -15,7 +16,8 @@ internal sealed class UploadService(IFileStorage storage, IStatusFileRepository 
 
         try
         {
-            await files.RegisterAsync(identifier, Path.GetFileName(fileName), storagePath, email, cancellationToken);
+            await files.RegisterAsync(identifier, Path.GetFileName(fileName), storagePath, email, userId,
+                cancellationToken);
         }
         catch (Exception registrationError)
         {
