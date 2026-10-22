@@ -1,0 +1,58 @@
+using Control.Api.Application;
+using Control.Api.Application.Dto;
+using Control.Api.Application.Validators;
+using Microsoft.EntityFrameworkCore;
+using Metrica.Contracts;
+using Npgsql;
+
+namespace Control.Api.Endpoints;
+
+internal static class UploadEndpoints
+{
+    internal static void MapUploadEndpoints(this WebApplication app)
+    {
+        app.MapPost("/cargas", async (HttpRequest request, UploadService uploads,
+            UploadFileRequestValidator validator, CancellationToken cancellationToken) =>
+        {
+            var (uploadRequest, validation) = await validator.ValidateRequestAsync(request, cancellationToken);
+            if (!validation.IsValid)
+            {
+                var error = validation.Errors[0];
+                var statusCode = error.ErrorCode == UploadFileRequestValidator.FileTooLargeCode
+                    ? StatusCodes.Status413PayloadTooLarge : StatusCodes.Status400BadRequest;
+                return Results.Json(new { message = error.ErrorMessage }, statusCode: statusCode);
+            }
+
+            try
+            {
+                await using var stream = uploadRequest.Field!.OpenReadStream();
+                var identifier = await uploads.UploadAsync(stream, uploadRequest.Field.FileName, cancellationToken);
+                return Results.Ok(new UploadAcceptedResponse(
+                    "Processing file", EstadoCarga.Pending.ToString(), identifier));
+            }
+            catch (Exception ex) when (ex is HttpRequestException or NpgsqlException or DbUpdateException or IOException)
+            {
+                return Results.Problem("Upload service is unavailable.", statusCode: 503);
+            }
+        }).DisableAntiforgery()
+          .Accepts<UploadFileRequest>("multipart/form-data")
+          .Produces<UploadAcceptedResponse>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status413PayloadTooLarge)
+          .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+          .WithTags("Cargas")
+          .WithSummary("Subir un archivo Excel")
+          .WithDescription("Recibe un .xlsx de hasta 5 MB en el campo field y devuelve el estado inicial.");
+
+        app.MapGet("/cargas/{identifier:guid}", async (
+            Guid identifier, IStatusFileRepository files, CancellationToken cancellationToken) =>
+        {
+            var file = await files.GetAsync(identifier, cancellationToken);
+            return file is null ? Results.NotFound() : Results.Ok(new UploadStatusResponse(
+                identifier, file.Status.ToString(), file.FileName));
+        }).Produces<UploadStatusResponse>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status404NotFound)
+          .WithTags("Cargas")
+          .WithSummary("Consultar el estado de una carga");
+    }
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.11.0" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Include="../../src/Control.Api/Application/*.cs" Link="Application/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Control.Api/Application/Dto/*.cs" Link="Application/Dto/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Control.Api/Application/Validators/*.cs" Link="Application/Validators/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Metrica.Contracts/EstadoCarga.cs" Link="EstadoCarga.cs" />
+  </ItemGroup>
+</Project>
