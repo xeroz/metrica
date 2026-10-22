@@ -11,6 +11,7 @@
     <Compile Include="../../src/Control.Api/Application/*.cs" Link="Application/%(Filename)%(Extension)" />
     <Compile Include="../../src/Control.Api/Application/Dto/*.cs" Link="Application/Dto/%(Filename)%(Extension)" />
     <Compile Include="../../src/Control.Api/Application/Validators/*.cs" Link="Application/Validators/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Control.Api/Endpoints/UploadExceptionHandler.cs" Link="Endpoints/UploadExceptionHandler.cs" />
     <Compile Include="../../src/Metrica.Contracts/EstadoCarga.cs" Link="EstadoCarga.cs" />
   </ItemGroup>
 </Project>

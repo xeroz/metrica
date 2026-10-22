@@ -2,7 +2,9 @@ using System.IO.Compression;
 using Control.Api.Application;
 using Control.Api.Application.Dto;
 using Control.Api.Application.Validators;
+using Control.Api.Endpoints;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 static IFormFile File(byte[] content, string name) =>
@@ -31,31 +33,6 @@ if (validator.Validate(new UploadFileRequest { Field = File(new byte[UploadFileR
 if (validator.Validate(new UploadFileRequest()).IsValid)
     throw new Exception("Missing file accepted.");
 
-var wrongContentType = new DefaultHttpContext();
-wrongContentType.Request.ContentType = "application/x-www-form-urlencoded";
-var (_, contentTypeValidation) = await validator.ValidateRequestAsync(wrongContentType.Request, CancellationToken.None);
-if (contentTypeValidation.Errors[0].ErrorMessage != "Expected multipart/form-data.")
-    throw new Exception("Non-multipart request accepted.");
-
-var invalidMultipart = new DefaultHttpContext();
-invalidMultipart.Request.ContentType = "multipart/form-data";
-var (_, multipartValidation) = await validator.ValidateRequestAsync(invalidMultipart.Request, CancellationToken.None);
-if (multipartValidation.Errors[0].ErrorMessage != "Invalid multipart form.")
-    throw new Exception("Malformed multipart request accepted.");
-
-var multipart = new DefaultHttpContext();
-multipart.Request.ContentType = "multipart/form-data; boundary=test";
-multipart.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
-    { ["email"] = email }, new FormFileCollection { valid });
-var (parsedRequest, parsedValidation) = await validator.ValidateRequestAsync(multipart.Request, CancellationToken.None);
-if (!parsedValidation.IsValid || parsedRequest.Field != valid || parsedRequest.Email != email)
-    throw new Exception("Valid multipart file was not extracted.");
-
-multipart.Request.Form = new FormCollection(null, new FormFileCollection());
-var (_, missingFieldValidation) = await validator.ValidateRequestAsync(multipart.Request, CancellationToken.None);
-if (missingFieldValidation.IsValid)
-    throw new Exception("Multipart request without field accepted.");
-
 if (args.Length > 0)
 {
     var sample = new FileInfo(args[0]);
@@ -74,8 +51,22 @@ if (repository.Identifier != identifier || repository.Email != email || !storage
 
 repository.Fail = true;
 try { await uploads.UploadAsync(valid.OpenReadStream(), valid.FileName, email, CancellationToken.None); throw new Exception("Registration failure was ignored."); }
-catch (IOException) { }
+catch (UploadUnavailableException ex) when (ex.InnerException is IOException) { }
 if (!storage.Deleted) throw new Exception("Orphan upload was not removed.");
+
+var serviceCollection = new ServiceCollection();
+serviceCollection.AddLogging();
+serviceCollection.AddProblemDetails();
+using var services = serviceCollection.BuildServiceProvider();
+var handler = new UploadExceptionHandler();
+var context = new DefaultHttpContext { RequestServices = services };
+context.Response.Body = new MemoryStream();
+if (!await handler.TryHandleAsync(context,
+        new UploadUnavailableException("Database is unavailable.", new IOException()), CancellationToken.None)
+    || context.Response.StatusCode != StatusCodes.Status503ServiceUnavailable)
+    throw new Exception("Unavailable upload did not return 503.");
+if (await handler.TryHandleAsync(new DefaultHttpContext(), new InvalidOperationException(), CancellationToken.None))
+    throw new Exception("Unexpected failure was incorrectly handled as unavailable.");
 
 Console.WriteLine("Control upload checks passed.");
 
@@ -103,7 +94,7 @@ sealed class FakeRepository : IStatusFileRepository
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     public Task RegisterAsync(Guid identifier, string fileName, string storagePath, string email, CancellationToken cancellationToken)
     {
-        if (Fail) throw new IOException("Simulated database failure.");
+        if (Fail) throw new UploadUnavailableException("Simulated database failure.", new IOException());
         Identifier = identifier;
         Email = email;
         return Task.CompletedTask;

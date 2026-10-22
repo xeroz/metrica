@@ -2,11 +2,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Control.Api.Application;
 
-internal sealed class UploadService(
-    IFileStorage storage,
-    IStatusFileRepository files,
-    ILogger<UploadService> logger)
+internal sealed class UploadService(IFileStorage storage, IStatusFileRepository files, ILogger<UploadService> logger)
 {
+    internal Task<StatusFile?> GetStatusAsync(Guid identifier, CancellationToken cancellationToken) =>
+        files.GetAsync(identifier, cancellationToken);
+
     internal async Task<Guid> UploadAsync(Stream content, string fileName, string email, CancellationToken cancellationToken)
     {
         var identifier = Guid.NewGuid();

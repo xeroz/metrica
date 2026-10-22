@@ -11,6 +11,8 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
+builder.Services.AddExceptionHandler<UploadExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = UploadFileRequestValidator.MaxFileSize + 64 * 1024);
 builder.WebHost.ConfigureKestrel(options =>
@@ -29,6 +31,7 @@ builder.Services.AddScoped<UploadValidationFilter>();
 builder.Services.AddHostedService<OutboxPublisher>();
 
 var app = builder.Build();
+app.UseExceptionHandler();
 await app.Services.GetRequiredService<IStatusFileRepository>().InitializeAsync();
 
 if (app.Environment.IsDevelopment())

@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using Control.Api.Application.Dto;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 
 namespace Control.Api.Application.Validators;
 
