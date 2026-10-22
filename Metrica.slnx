@@ -3,7 +3,6 @@
     <Project Path="src/Auth.Api/Auth.Api.csproj" />
     <Project Path="src/Control.Api/Control.Api.csproj" />
     <Project Path="src/Gateway/Gateway.csproj" />
-    <Project Path="src/Metrica.Contracts/Metrica.Contracts.csproj" />
     <Project Path="src/Notifications.Worker/Notifications.Worker.csproj" />
     <Project Path="src/Processing.Worker/Processing.Worker.csproj" />
   </Folder>

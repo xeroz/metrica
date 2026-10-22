@@ -11,7 +11,7 @@
     <PackageReference Include="Npgsql" Version="10.0.0" />
     <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
-    <ProjectReference Include="../Metrica.Contracts/Metrica.Contracts.csproj" />
+    <Compile Include="../Shared/LoadStatus.cs" Link="LoadStatus.cs" />
   </ItemGroup>
 
 </Project>

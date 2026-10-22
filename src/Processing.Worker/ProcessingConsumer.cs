@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Metrica.Contracts;
+using Metrica.Shared;
 using RabbitMQ.Client;
 
 namespace Processing.Worker;
@@ -89,8 +89,8 @@ internal sealed class ProcessingConsumer(
             logger.LogWarning("Ignoring load {LoadId}: no matching StatusFile", message.IdCarga);
             return;
         }
-        if (status is EstadoCarga.Completed or EstadoCarga.Notified) return;
-        if (status == EstadoCarga.Loaded)
+        if (status is LoadStatus.Completed or LoadStatus.Notified) return;
+        if (status == LoadStatus.Loaded)
         {
             await repository.FinishAsync(message.IdCarga, null, token);
             return;

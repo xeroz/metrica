@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Metrica.Contracts;
+using Metrica.Shared;
 using Processing.Worker.Persistence;
 using Processing.Worker.Persistence.Models;
 
@@ -16,15 +16,15 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         await context.Database.MigrateAsync(token);
     }
 
-    internal async Task<EstadoCarga?> StartAsync(long loadId, Guid identifier, CancellationToken token)
+    internal async Task<LoadStatus?> StartAsync(long loadId, Guid identifier, CancellationToken token)
     {
         await using var context = await contexts.CreateDbContextAsync(token);
         var file = await context.StatusFiles.SingleOrDefaultAsync(
             item => item.Id == loadId && item.UniqueIdentifier == identifier, token);
         if (file is null) return null;
-        if (file.Status == EstadoCarga.Pending)
+        if (file.Status == LoadStatus.Pending)
         {
-            file.Status = EstadoCarga.InProgress;
+            file.Status = LoadStatus.InProgress;
             await context.SaveChangesAsync(token);
         }
         return file.Status;
@@ -35,7 +35,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         await using var context = await contexts.CreateDbContextAsync(token);
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         var file = await context.StatusFiles.SingleAsync(item => item.Id == loadId, token);
-        if (file.Status != EstadoCarga.InProgress)
+        if (file.Status != LoadStatus.InProgress)
             throw new InvalidOperationException("Load state changed during processing.");
 
         var periodNames = rows.Products.Select(item => item.Period).Distinct().ToArray();
@@ -86,7 +86,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
                 LoadId = loadId, RowNumber = row.RowNumber
             });
         }
-        file.Status = EstadoCarga.Loaded;
+        file.Status = LoadStatus.Loaded;
         await context.SaveChangesAsync(token);
         await transaction.CommitAsync(token);
     }
@@ -117,9 +117,9 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         outcome ??= failed == 0 ? "Completado" : "CompletadoConErrores";
         var finishedAt = DateTimeOffset.UtcNow;
         var file = await context.StatusFiles.SingleAsync(item => item.Id == loadId, token);
-        if (file.Status is not (EstadoCarga.InProgress or EstadoCarga.Loaded))
+        if (file.Status is not (LoadStatus.InProgress or LoadStatus.Loaded))
             throw new InvalidOperationException("Load state changed before completion.");
-        file.Status = EstadoCarga.Completed;
+        file.Status = LoadStatus.Completed;
         context.Results.Add(new ProcessingResult
         {
             LoadId = loadId, Outcome = outcome, InsertedCount = inserted,

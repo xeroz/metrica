@@ -1,5 +1,5 @@
-using Metrica.Contracts;
+using Metrica.Shared;
 
 namespace Control.Api.Application.ReadModels;
 
-internal sealed record StatusFile(EstadoCarga Status, string FileName);
+internal sealed record StatusFile(LoadStatus Status, string FileName);

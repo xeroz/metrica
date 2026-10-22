@@ -2,7 +2,7 @@ using System.Text.Json;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
-using Metrica.Contracts;
+using Metrica.Shared;
 using Npgsql;
 using RabbitMQ.Client;
 
@@ -95,11 +95,11 @@ internal sealed class NotificationConsumer(IConfiguration configuration,
         await using var reader = await lookup.ExecuteReaderAsync(token);
         if (!await reader.ReadAsync(token))
             throw new InvalidDataException($"Load {message.IdCarga} does not exist.");
-        var status = (EstadoCarga)reader.GetInt16(0);
+        var status = (LoadStatus)reader.GetInt16(0);
         var email = reader.IsDBNull(1) ? null : reader.GetString(1);
         await reader.CloseAsync();
-        if (status == EstadoCarga.Notified) return;
-        if (status != EstadoCarga.Completed)
+        if (status == LoadStatus.Notified) return;
+        if (status != LoadStatus.Completed)
             throw new InvalidDataException($"Load {message.IdCarga} is not completed.");
         if (string.IsNullOrWhiteSpace(email))
             throw new InvalidDataException($"Load {message.IdCarga} has no recipient email.");
@@ -130,8 +130,8 @@ internal sealed class NotificationConsumer(IConfiguration configuration,
 
         await using var update = new NpgsqlCommand(
             "UPDATE \"StatusFile\" SET status = @notified WHERE id = @id AND status = @completed", database);
-        update.Parameters.AddWithValue("notified", (short)EstadoCarga.Notified);
-        update.Parameters.AddWithValue("completed", (short)EstadoCarga.Completed);
+        update.Parameters.AddWithValue("notified", (short)LoadStatus.Notified);
+        update.Parameters.AddWithValue("completed", (short)LoadStatus.Completed);
         update.Parameters.AddWithValue("id", message.IdCarga);
         if (await update.ExecuteNonQueryAsync(token) != 1)
             throw new InvalidOperationException($"Load {message.IdCarga} changed state during notification.");

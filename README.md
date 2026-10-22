@@ -28,7 +28,7 @@ The solution contains five independent ASP.NET Core processes:
 
 `Auth.Api` stores users and issues JWTs. `Gateway` validates JWTs and routes client requests to Auth or Control. `Control.Api` accepts Excel uploads and exposes load status. `Processing.Worker` consumes `carga_masiva`, loads the workbook from SeaweedFS, writes products and failures to PostgreSQL, and publishes completion messages to `notificaciones`. `Notifications.Worker` sends the result by email and marks the load as `Notified`. Auth and Control apply their EF Core migrations on startup.
 
-`Metrica.Contracts` defines the shared load states. Their numeric values are fixed for persistence and messaging:
+`src/Shared/LoadStatus.cs` defines the load states compiled into Control.Api and both workers. Their numeric values are fixed for persistence and messaging:
 
 | Value | State |
 | --- | --- |

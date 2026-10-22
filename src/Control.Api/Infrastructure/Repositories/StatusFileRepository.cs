@@ -5,7 +5,7 @@ using Control.Api.Application.ReadModels;
 using Control.Api.Infrastructure.Persistence;
 using Control.Api.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
-using Metrica.Contracts;
+using Metrica.Shared;
 using Npgsql;
 
 namespace Control.Api.Infrastructure.Repositories;
@@ -22,7 +22,7 @@ internal sealed class StatusFileRepository(IDbContextFactory<ControlDbContext> c
 
             var file = new StatusFileRow
             {
-                Status = EstadoCarga.Pending,
+                Status = LoadStatus.Pending,
                 FileName = fileName,
                 Email = email,
                 UserId = userId,

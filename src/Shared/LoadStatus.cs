@@ -1,6 +1,6 @@
-namespace Metrica.Contracts;
+namespace Metrica.Shared;
 
-public enum EstadoCarga
+public enum LoadStatus
 {
     Pending = 1,
     InProgress = 2,
