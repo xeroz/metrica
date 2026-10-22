@@ -2,7 +2,7 @@ using Control.Api.Application;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 
-namespace Control.Api.Endpoints;
+namespace Control.Api.Exceptions;
 
 internal sealed class UploadExceptionHandler : IExceptionHandler
 {

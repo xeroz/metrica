@@ -2,7 +2,7 @@ using System.IO.Compression;
 using Control.Api.Application;
 using Control.Api.Application.Dto;
 using Control.Api.Application.Validators;
-using Control.Api.Endpoints;
+using Control.Api.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

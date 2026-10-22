@@ -2,6 +2,7 @@ using Control.Api.Application;
 using Control.Api.Application.Filters;
 using Control.Api.Application.Validators;
 using Control.Api.Endpoints;
+using Control.Api.Exceptions;
 using Control.Api.Infrastructure;
 using Control.Api.Infrastructure.Messaging;
 using Control.Api.Infrastructure.Persistence;
