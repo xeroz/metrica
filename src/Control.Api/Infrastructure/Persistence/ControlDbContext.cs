@@ -18,6 +18,7 @@ internal sealed class ControlDbContext(DbContextOptions<ControlDbContext> option
             entity.Property(file => file.Id).HasColumnName("id").UseIdentityAlwaysColumn();
             entity.Property(file => file.Status).HasColumnName("status").HasConversion<short>();
             entity.Property(file => file.FileName).HasColumnName("file_name").IsRequired();
+            entity.Property(file => file.Email).HasColumnName("email").HasMaxLength(320);
             entity.Property(file => file.UniqueIdentifier).HasColumnName("unique_identifier");
             entity.HasIndex(file => file.UniqueIdentifier).IsUnique();
         });

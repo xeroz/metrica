@@ -54,6 +54,11 @@ namespace Control.Api.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasColumnType("text")

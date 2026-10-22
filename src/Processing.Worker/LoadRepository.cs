@@ -14,12 +14,6 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
     {
         await using var context = await contexts.CreateDbContextAsync(token);
         await context.Database.MigrateAsync(token);
-        await context.Database.ExecuteSqlRawAsync("""
-            UPDATE "StatusFile" AS file
-            SET status = 5
-            FROM notification_outbox AS message
-            WHERE message.load_id = file.id AND message.sent_at IS NOT NULL AND file.status = 4
-            """, token);
     }
 
     internal async Task<EstadoCarga?> StartAsync(long loadId, Guid identifier, CancellationToken token)
@@ -157,11 +151,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         await using var context = await contexts.CreateDbContextAsync(token);
         var message = await context.NotificationOutbox.SingleOrDefaultAsync(item => item.Id == id, token);
         if (message is null || message.SentAt is not null) return;
-        var file = await context.StatusFiles.SingleAsync(item => item.Id == message.LoadId, token);
-        if (file.Status != EstadoCarga.Completed)
-            throw new InvalidOperationException("Load state changed before notification was published.");
         message.SentAt = DateTimeOffset.UtcNow;
-        file.Status = EstadoCarga.Notified;
         await context.SaveChangesAsync(token);
     }
 

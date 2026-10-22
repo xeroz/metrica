@@ -7,7 +7,7 @@ internal sealed class UploadService(
     IStatusFileRepository files,
     ILogger<UploadService> logger)
 {
-    internal async Task<Guid> UploadAsync(Stream content, string fileName, CancellationToken cancellationToken)
+    internal async Task<Guid> UploadAsync(Stream content, string fileName, string email, CancellationToken cancellationToken)
     {
         var identifier = Guid.NewGuid();
         var storagePath = $"/uploads/{identifier:N}.xlsx";
@@ -15,7 +15,7 @@ internal sealed class UploadService(
 
         try
         {
-            await files.RegisterAsync(identifier, Path.GetFileName(fileName), storagePath, cancellationToken);
+            await files.RegisterAsync(identifier, Path.GetFileName(fileName), storagePath, email, cancellationToken);
         }
         catch (Exception registrationError)
         {

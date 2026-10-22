@@ -7,7 +7,7 @@ internal sealed record StatusFile(EstadoCarga Status, string FileName);
 internal interface IStatusFileRepository
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
-    Task RegisterAsync(Guid identifier, string fileName, string storagePath, CancellationToken cancellationToken);
+    Task RegisterAsync(Guid identifier, string fileName, string storagePath, string email, CancellationToken cancellationToken);
     Task<StatusFile?> GetAsync(Guid identifier, CancellationToken cancellationToken);
 }
 

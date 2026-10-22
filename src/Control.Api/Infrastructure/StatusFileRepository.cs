@@ -15,7 +15,7 @@ internal sealed class StatusFileRepository(IDbContextFactory<ControlDbContext> c
         await context.Database.MigrateAsync(cancellationToken);
     }
 
-    public async Task RegisterAsync(Guid identifier, string fileName, string storagePath,
+    public async Task RegisterAsync(Guid identifier, string fileName, string storagePath, string email,
         CancellationToken cancellationToken)
     {
         await using var context = await contexts.CreateDbContextAsync(cancellationToken);
@@ -25,6 +25,7 @@ internal sealed class StatusFileRepository(IDbContextFactory<ControlDbContext> c
         {
             Status = EstadoCarga.Pending,
             FileName = fileName,
+            Email = email,
             UniqueIdentifier = identifier
         };
         context.StatusFiles.Add(file);

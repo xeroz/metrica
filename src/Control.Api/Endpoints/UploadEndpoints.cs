@@ -26,7 +26,8 @@ internal static class UploadEndpoints
             try
             {
                 await using var stream = uploadRequest.Field!.OpenReadStream();
-                var identifier = await uploads.UploadAsync(stream, uploadRequest.Field.FileName, cancellationToken);
+                var identifier = await uploads.UploadAsync(stream, uploadRequest.Field.FileName,
+                    uploadRequest.Email!, cancellationToken);
                 return Results.Ok(new UploadAcceptedResponse(
                     "Processing file", EstadoCarga.Pending.ToString(), identifier));
             }
@@ -42,7 +43,7 @@ internal static class UploadEndpoints
           .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
           .WithTags("Cargas")
           .WithSummary("Subir un archivo Excel")
-          .WithDescription("Recibe un .xlsx de hasta 5 MB en el campo field y devuelve el estado inicial.");
+          .WithDescription("Recibe un .xlsx de hasta 5 MB en field y el correo de notificación en email.");
 
         app.MapGet("/cargas/{identifier:guid}", async (
             Guid identifier, IStatusFileRepository files, CancellationToken cancellationToken) =>

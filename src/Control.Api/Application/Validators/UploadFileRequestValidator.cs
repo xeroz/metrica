@@ -13,6 +13,8 @@ internal sealed class UploadFileRequestValidator : AbstractValidator<UploadFileR
 
     public UploadFileRequestValidator()
     {
+        RuleFor(request => request.Email)
+            .NotEmpty().EmailAddress().MaximumLength(320);
         RuleFor(request => request.Field)
             .Cascade(CascadeMode.Stop)
             .NotNull().WithMessage("The field must contain a non-empty Excel file.")
@@ -32,8 +34,8 @@ internal sealed class UploadFileRequestValidator : AbstractValidator<UploadFileR
                 new ValidationFailure(nameof(UploadFileRequest.Field), "Expected multipart/form-data.")
             ]));
 
-        IFormFile? file;
-        try { file = (await request.ReadFormAsync(cancellationToken)).Files.GetFile("field"); }
+        IFormCollection form;
+        try { form = await request.ReadFormAsync(cancellationToken); }
         catch (InvalidDataException)
         {
             return (new UploadFileRequest(), new ValidationResult([
@@ -41,7 +43,11 @@ internal sealed class UploadFileRequestValidator : AbstractValidator<UploadFileR
             ]));
         }
 
-        var uploadRequest = new UploadFileRequest { Field = file };
+        var uploadRequest = new UploadFileRequest
+        {
+            Field = form.Files.GetFile("field"),
+            Email = form["email"].ToString().Trim()
+        };
         return (uploadRequest, await ValidateAsync(uploadRequest, cancellationToken));
     }
 

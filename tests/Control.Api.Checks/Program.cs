@@ -15,14 +15,17 @@ using (var zip = new ZipArchive(validBytes, ZipArchiveMode.Create, leaveOpen: tr
     zip.CreateEntry("xl/workbook.xml");
 }
 
+const string email = "usuario@example.com";
 var valid = File(validBytes.ToArray(), "sample.xlsx");
 var validator = new UploadFileRequestValidator();
-if (!validator.Validate(new UploadFileRequest { Field = valid }).IsValid) throw new Exception("Valid Excel container rejected.");
-if (validator.Validate(new UploadFileRequest { Field = File(validBytes.ToArray(), "sample.txt") }).IsValid)
+if (!validator.Validate(new UploadFileRequest { Field = valid, Email = email }).IsValid) throw new Exception("Valid Excel container rejected.");
+if (validator.Validate(new UploadFileRequest { Field = valid, Email = "invalid" }).IsValid)
+    throw new Exception("Invalid email accepted.");
+if (validator.Validate(new UploadFileRequest { Field = File(validBytes.ToArray(), "sample.txt"), Email = email }).IsValid)
     throw new Exception("Wrong extension accepted.");
-if (validator.Validate(new UploadFileRequest { Field = File([1, 2, 3], "sample.xlsx") }).IsValid)
+if (validator.Validate(new UploadFileRequest { Field = File([1, 2, 3], "sample.xlsx"), Email = email }).IsValid)
     throw new Exception("Invalid Excel container accepted.");
-if (validator.Validate(new UploadFileRequest { Field = File(new byte[UploadFileRequestValidator.MaxFileSize + 1], "large.xlsx") })
+if (validator.Validate(new UploadFileRequest { Field = File(new byte[UploadFileRequestValidator.MaxFileSize + 1], "large.xlsx"), Email = email })
     .Errors[0].ErrorCode != UploadFileRequestValidator.FileTooLargeCode)
     throw new Exception("Oversized file accepted.");
 if (validator.Validate(new UploadFileRequest()).IsValid)
@@ -42,9 +45,10 @@ if (multipartValidation.Errors[0].ErrorMessage != "Invalid multipart form.")
 
 var multipart = new DefaultHttpContext();
 multipart.Request.ContentType = "multipart/form-data; boundary=test";
-multipart.Request.Form = new FormCollection(null, new FormFileCollection { valid });
+multipart.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+    { ["email"] = email }, new FormFileCollection { valid });
 var (parsedRequest, parsedValidation) = await validator.ValidateRequestAsync(multipart.Request, CancellationToken.None);
-if (!parsedValidation.IsValid || parsedRequest.Field != valid)
+if (!parsedValidation.IsValid || parsedRequest.Field != valid || parsedRequest.Email != email)
     throw new Exception("Valid multipart file was not extracted.");
 
 multipart.Request.Form = new FormCollection(null, new FormFileCollection());
@@ -57,19 +61,19 @@ if (args.Length > 0)
     var sample = new FileInfo(args[0]);
     await using var sampleStream = sample.OpenRead();
     var realFile = new FormFile(sampleStream, 0, sample.Length, "field", sample.Name);
-    if (!validator.Validate(new UploadFileRequest { Field = realFile }).IsValid)
+    if (!validator.Validate(new UploadFileRequest { Field = realFile, Email = email }).IsValid)
         throw new Exception("Provided sample was rejected.");
 }
 
 var storage = new FakeStorage();
 var repository = new FakeRepository();
 var uploads = new UploadService(storage, repository, NullLogger<UploadService>.Instance);
-var identifier = await uploads.UploadAsync(valid.OpenReadStream(), valid.FileName, CancellationToken.None);
-if (repository.Identifier != identifier || !storage.Saved || storage.Deleted)
+var identifier = await uploads.UploadAsync(valid.OpenReadStream(), valid.FileName, email, CancellationToken.None);
+if (repository.Identifier != identifier || repository.Email != email || !storage.Saved || storage.Deleted)
     throw new Exception("Accepted upload was not stored and registered.");
 
 repository.Fail = true;
-try { await uploads.UploadAsync(valid.OpenReadStream(), valid.FileName, CancellationToken.None); throw new Exception("Registration failure was ignored."); }
+try { await uploads.UploadAsync(valid.OpenReadStream(), valid.FileName, email, CancellationToken.None); throw new Exception("Registration failure was ignored."); }
 catch (IOException) { }
 if (!storage.Deleted) throw new Exception("Orphan upload was not removed.");
 
@@ -94,12 +98,14 @@ sealed class FakeStorage : IFileStorage
 sealed class FakeRepository : IStatusFileRepository
 {
     public Guid Identifier { get; private set; }
+    public string? Email { get; private set; }
     public bool Fail { get; set; }
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-    public Task RegisterAsync(Guid identifier, string fileName, string storagePath, CancellationToken cancellationToken)
+    public Task RegisterAsync(Guid identifier, string fileName, string storagePath, string email, CancellationToken cancellationToken)
     {
         if (Fail) throw new IOException("Simulated database failure.");
         Identifier = identifier;
+        Email = email;
         return Task.CompletedTask;
     }
     public Task<StatusFile?> GetAsync(Guid identifier, CancellationToken cancellationToken) => Task.FromResult<StatusFile?>(null);

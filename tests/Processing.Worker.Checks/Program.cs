@@ -105,8 +105,8 @@ await using (var context = await contexts.CreateDbContextAsync())
 {
     var message = await context.NotificationOutbox.SingleAsync(item => item.Id == pending[0].Id);
     var file = await context.StatusFiles.SingleAsync(item => item.Id == message.LoadId);
-    if (message.SentAt is null || file.Status != EstadoCarga.Notified ||
-        await context.StatusFiles.CountAsync(item => item.Status == EstadoCarga.Completed) != 1)
-        throw new Exception("Publishing did not advance only the notified load.");
+    if (message.SentAt is null || file.Status != EstadoCarga.Completed ||
+        await context.StatusFiles.CountAsync(item => item.Status == EstadoCarga.Completed) != 2)
+        throw new Exception("Publishing advanced the load before email delivery.");
 }
 Console.WriteLine("Processing repository checks passed.");
