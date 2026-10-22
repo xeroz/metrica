@@ -1,11 +1,13 @@
 using Control.Api.Application;
+using Control.Api.Application.Abstractions;
 using Control.Api.Application.Filters;
 using Control.Api.Application.Validators;
 using Control.Api.Endpoints;
 using Control.Api.Exceptions;
-using Control.Api.Infrastructure;
 using Control.Api.Infrastructure.Messaging;
 using Control.Api.Infrastructure.Persistence;
+using Control.Api.Infrastructure.Repositories;
+using Control.Api.Infrastructure.Storage.Providers;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;

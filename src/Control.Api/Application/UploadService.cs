@@ -1,3 +1,5 @@
+using Control.Api.Application.Abstractions;
+using Control.Api.Application.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Control.Api.Application;

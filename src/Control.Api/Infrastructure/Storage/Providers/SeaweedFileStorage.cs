@@ -1,6 +1,7 @@
 using Control.Api.Application;
+using Control.Api.Application.Abstractions;
 
-namespace Control.Api.Infrastructure;
+namespace Control.Api.Infrastructure.Storage.Providers;
 
 internal sealed class SeaweedFileStorage(HttpClient client) : IFileStorage
 {

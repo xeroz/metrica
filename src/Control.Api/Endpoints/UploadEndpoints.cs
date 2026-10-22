@@ -1,4 +1,5 @@
 using Control.Api.Application;
+using Control.Api.Application.Abstractions;
 using Control.Api.Application.Dto;
 using Control.Api.Application.Filters;
 using Microsoft.AspNetCore.Mvc;

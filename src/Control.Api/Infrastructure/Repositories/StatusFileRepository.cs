@@ -1,12 +1,14 @@
 using System.Text.Json;
 using Control.Api.Application;
+using Control.Api.Application.Abstractions;
+using Control.Api.Application.Models;
 using Control.Api.Infrastructure.Persistence;
 using Control.Api.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Metrica.Contracts;
 using Npgsql;
 
-namespace Control.Api.Infrastructure;
+namespace Control.Api.Infrastructure.Repositories;
 
 internal sealed class StatusFileRepository(IDbContextFactory<ControlDbContext> contexts) : IStatusFileRepository
 {

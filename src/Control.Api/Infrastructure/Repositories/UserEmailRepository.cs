@@ -1,7 +1,8 @@
 using Control.Api.Application;
+using Control.Api.Application.Abstractions;
 using Npgsql;
 
-namespace Control.Api.Infrastructure;
+namespace Control.Api.Infrastructure.Repositories;
 
 internal sealed class UserEmailRepository(NpgsqlDataSource dataSource) : IUserEmailRepository
 {
