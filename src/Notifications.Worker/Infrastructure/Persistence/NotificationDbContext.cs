@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Metrica.Shared;
+using Notifications.Worker.Infrastructure.Persistence.Models;
 
-namespace Notifications.Worker.Infrastructure;
+namespace Notifications.Worker.Infrastructure.Persistence;
 
 internal sealed class NotificationDbContext(DbContextOptions<NotificationDbContext> options) : DbContext(options)
 {
@@ -20,9 +20,3 @@ internal sealed class NotificationDbContext(DbContextOptions<NotificationDbConte
     }
 }
 
-internal sealed class StatusFileRow
-{
-    public long Id { get; set; }
-    public LoadStatus Status { get; set; }
-    public string? Email { get; set; }
-}

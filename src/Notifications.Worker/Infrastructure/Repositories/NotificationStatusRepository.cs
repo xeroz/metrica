@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Metrica.Shared;
+using Notifications.Worker.Application.Abstractions;
+using Notifications.Worker.Application.ReadModels;
+using Notifications.Worker.Infrastructure.Persistence;
 
-namespace Notifications.Worker.Infrastructure;
+namespace Notifications.Worker.Infrastructure.Repositories;
 
 internal sealed class NotificationStatusRepository(IDbContextFactory<NotificationDbContext> contexts)
     : INotificationStatusRepository

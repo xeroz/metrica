@@ -1,15 +1,8 @@
-using Microsoft.EntityFrameworkCore;
-using Notifications.Worker;
-using Notifications.Worker.Infrastructure;
+using Notifications.Worker.Bootstrapping;
 
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("Database")
-    ?? throw new InvalidOperationException("ConnectionStrings:Database is required.");
-builder.Services.AddDbContextFactory<NotificationDbContext>(options => options.UseNpgsql(connectionString));
-builder.Services.AddSingleton<INotificationStatusRepository, NotificationStatusRepository>();
-builder.Services.AddHostedService<NotificationConsumer>();
+builder.Services.AddNotificationsWorker(builder.Configuration);
+
 var app = builder.Build();
-
 app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "notifications" }));
-
 app.Run();

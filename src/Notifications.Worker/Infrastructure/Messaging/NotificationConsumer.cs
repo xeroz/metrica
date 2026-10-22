@@ -1,16 +1,11 @@
 using System.Text.Json;
-using MailKit.Net.Smtp;
-using MailKit.Security;
-using MimeKit;
-using Metrica.Shared;
+using Notifications.Worker.Application;
+using Notifications.Worker.Application.Dto;
 using RabbitMQ.Client;
 
-namespace Notifications.Worker;
+namespace Notifications.Worker.Infrastructure.Messaging;
 
-internal sealed record CompletionMessage(long IdCarga, DateTimeOffset FechaFin,
-    string Resultado, int Insertados, int Fallidos);
-
-internal sealed class NotificationConsumer(IConfiguration configuration, INotificationStatusRepository statuses,
+internal sealed class NotificationConsumer(IConfiguration configuration, NotificationService notifications,
     ILogger<NotificationConsumer> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -66,7 +61,7 @@ internal sealed class NotificationConsumer(IConfiguration configuration, INotifi
 
             try
             {
-                await NotifyAsync(message, token);
+                await notifications.NotifyAsync(message, token);
                 await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, token);
             }
             catch (InvalidDataException ex)
@@ -81,44 +76,5 @@ internal sealed class NotificationConsumer(IConfiguration configuration, INotifi
                 await Task.Delay(TimeSpan.FromSeconds(5), token);
             }
         }
-    }
-
-    private async Task NotifyAsync(CompletionMessage message, CancellationToken token)
-    {
-        var file = await statuses.GetAsync(message.IdCarga, token)
-            ?? throw new InvalidDataException($"Load {message.IdCarga} does not exist.");
-        if (file.Status == LoadStatus.Notified) return;
-        if (file.Status != LoadStatus.Completed)
-            throw new InvalidDataException($"Load {message.IdCarga} is not completed.");
-        if (string.IsNullOrWhiteSpace(file.Email))
-            throw new InvalidDataException($"Load {message.IdCarga} has no recipient email.");
-        if (!MailboxAddress.TryParse(file.Email, out var recipient))
-            throw new InvalidDataException($"Load {message.IdCarga} has an invalid recipient email.");
-
-        var mail = new MimeMessage();
-        mail.From.Add(MailboxAddress.Parse(configuration["Smtp:From"]
-            ?? throw new InvalidOperationException("Smtp:From is required.")));
-        mail.To.Add(recipient);
-        mail.Subject = $"Carga {message.IdCarga} finalizada: {message.Resultado}";
-        mail.Body = new TextPart("plain")
-        {
-            Text = $"Tu carga {message.IdCarga} finalizó el {message.FechaFin:yyyy-MM-dd HH:mm:ss} UTC.\n" +
-                   $"Resultado: {message.Resultado}\nInsertados: {message.Insertados}\nFallidos: {message.Fallidos}."
-        };
-
-        using var smtp = new SmtpClient();
-        var security = Enum.Parse<SecureSocketOptions>(configuration["Smtp:Security"] ?? "StartTls", true);
-        await smtp.ConnectAsync(configuration["Smtp:Host"]
-            ?? throw new InvalidOperationException("Smtp:Host is required."),
-            configuration.GetValue("Smtp:Port", 25), security, token);
-        var smtpUser = configuration["Smtp:User"];
-        if (!string.IsNullOrWhiteSpace(smtpUser))
-            await smtp.AuthenticateAsync(smtpUser, configuration["Smtp:Password"]
-                ?? throw new InvalidOperationException("Smtp:Password is required when Smtp:User is set."), token);
-        await smtp.SendAsync(mail, token);
-
-        if (!await statuses.MarkNotifiedAsync(message.IdCarga, token))
-            throw new InvalidOperationException($"Load {message.IdCarga} changed state during notification.");
-        logger.LogInformation("Email sent for load {LoadId}", message.IdCarga);
     }
 }

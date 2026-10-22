@@ -1,8 +1,6 @@
-using Metrica.Shared;
+using Notifications.Worker.Application.ReadModels;
 
-namespace Notifications.Worker;
-
-internal sealed record NotificationStatus(LoadStatus Status, string? Email);
+namespace Notifications.Worker.Application.Abstractions;
 
 internal interface INotificationStatusRepository
 {
