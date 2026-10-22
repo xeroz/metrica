@@ -3,7 +3,6 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
 using Metrica.Shared;
-using Npgsql;
 using RabbitMQ.Client;
 
 namespace Notifications.Worker;
@@ -11,7 +10,7 @@ namespace Notifications.Worker;
 internal sealed record CompletionMessage(long IdCarga, DateTimeOffset FechaFin,
     string Resultado, int Insertados, int Fallidos);
 
-internal sealed class NotificationConsumer(IConfiguration configuration,
+internal sealed class NotificationConsumer(IConfiguration configuration, INotificationStatusRepository statuses,
     ILogger<NotificationConsumer> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -86,24 +85,14 @@ internal sealed class NotificationConsumer(IConfiguration configuration,
 
     private async Task NotifyAsync(CompletionMessage message, CancellationToken token)
     {
-        await using var database = new NpgsqlConnection(configuration.GetConnectionString("Database")
-            ?? throw new InvalidOperationException("ConnectionStrings:Database is required."));
-        await database.OpenAsync(token);
-        await using var lookup = new NpgsqlCommand(
-            "SELECT status, email FROM \"StatusFile\" WHERE id = @id", database);
-        lookup.Parameters.AddWithValue("id", message.IdCarga);
-        await using var reader = await lookup.ExecuteReaderAsync(token);
-        if (!await reader.ReadAsync(token))
-            throw new InvalidDataException($"Load {message.IdCarga} does not exist.");
-        var status = (LoadStatus)reader.GetInt16(0);
-        var email = reader.IsDBNull(1) ? null : reader.GetString(1);
-        await reader.CloseAsync();
-        if (status == LoadStatus.Notified) return;
-        if (status != LoadStatus.Completed)
+        var file = await statuses.GetAsync(message.IdCarga, token)
+            ?? throw new InvalidDataException($"Load {message.IdCarga} does not exist.");
+        if (file.Status == LoadStatus.Notified) return;
+        if (file.Status != LoadStatus.Completed)
             throw new InvalidDataException($"Load {message.IdCarga} is not completed.");
-        if (string.IsNullOrWhiteSpace(email))
+        if (string.IsNullOrWhiteSpace(file.Email))
             throw new InvalidDataException($"Load {message.IdCarga} has no recipient email.");
-        if (!MailboxAddress.TryParse(email, out var recipient))
+        if (!MailboxAddress.TryParse(file.Email, out var recipient))
             throw new InvalidDataException($"Load {message.IdCarga} has an invalid recipient email.");
 
         var mail = new MimeMessage();
@@ -128,12 +117,7 @@ internal sealed class NotificationConsumer(IConfiguration configuration,
                 ?? throw new InvalidOperationException("Smtp:Password is required when Smtp:User is set."), token);
         await smtp.SendAsync(mail, token);
 
-        await using var update = new NpgsqlCommand(
-            "UPDATE \"StatusFile\" SET status = @notified WHERE id = @id AND status = @completed", database);
-        update.Parameters.AddWithValue("notified", (short)LoadStatus.Notified);
-        update.Parameters.AddWithValue("completed", (short)LoadStatus.Completed);
-        update.Parameters.AddWithValue("id", message.IdCarga);
-        if (await update.ExecuteNonQueryAsync(token) != 1)
+        if (!await statuses.MarkNotifiedAsync(message.IdCarga, token))
             throw new InvalidOperationException($"Load {message.IdCarga} changed state during notification.");
         logger.LogInformation("Email sent for load {LoadId}", message.IdCarga);
     }
