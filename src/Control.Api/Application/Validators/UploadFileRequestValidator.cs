@@ -30,7 +30,7 @@ internal sealed class UploadFileRequestValidator : AbstractValidator<UploadFileR
             return archive.GetEntry("[Content_Types].xml") is not null
                 && archive.GetEntry("xl/workbook.xml") is not null;
         }
-        catch (Exception ex) when (ex is IOException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException)
         {
             return false;
         }
