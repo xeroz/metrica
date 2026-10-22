@@ -7,6 +7,7 @@ using Control.Api.Infrastructure.Persistence;
 using Control.Api.Infrastructure.Repositories;
 using Control.Api.Infrastructure.Storage;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -39,6 +40,17 @@ internal static class DependencyInjection
         services.AddScoped<UploadService>();
         services.AddScoped<UploadFileRequestValidator>();
         services.AddScoped<UploadValidationFilter>();
+        services.AddScoped<CurrentUserFilter>();
+        services.AddHttpContextAccessor();
+
+        services.AddScoped(sp =>
+        {
+            var resolved = sp.GetRequiredService<IHttpContextAccessor>().HttpContext?
+                .Items[CurrentUserFilter.ItemKey] as CurrentUser;
+            return resolved ?? throw new InvalidOperationException(
+                $"{nameof(CurrentUser)} was not resolved for the current request. " +
+                $"Attach {nameof(CurrentUserFilter)} to the endpoint.");
+        });
         return services;
     }
 

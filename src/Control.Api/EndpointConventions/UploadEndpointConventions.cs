@@ -8,7 +8,8 @@ internal static class UploadEndpointConventions
 {
     internal static void ConfigureUpload(this RouteHandlerBuilder endpoint)
     {
-        endpoint.RequireAuthorization().AddEndpointFilter<UploadValidationFilter>().DisableAntiforgery()
+        endpoint.RequireAuthorization().RequireRegisteredUser().AddEndpointFilter<UploadValidationFilter>()
+            .DisableAntiforgery()
             .Accepts<UploadFileRequest>("multipart/form-data")
             .Produces<UploadAcceptedResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
@@ -22,11 +23,14 @@ internal static class UploadEndpointConventions
 
     internal static void ConfigureStatus(this RouteHandlerBuilder endpoint)
     {
-        endpoint.RequireAuthorization()
+        endpoint.RequireAuthorization().RequireRegisteredUser()
             .Produces<UploadStatusResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound)
             .WithTags("Cargas")
             .WithSummary("Consultar el estado de una carga");
     }
+
+    private static RouteHandlerBuilder RequireRegisteredUser(this RouteHandlerBuilder endpoint)
+        => endpoint.AddEndpointFilter<CurrentUserFilter>();
 }
