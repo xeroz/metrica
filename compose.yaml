@@ -5,8 +5,10 @@ services:
       args:
         PROJECT: Gateway
     environment:
-      Services__Auth: http://auth:8080
-      Services__Control: http://control:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-metrica-local-only-signing-key-at-least-32-bytes}
+      ReverseProxy__Clusters__auth__Destinations__auth__Address: http://auth:8080/
+      ReverseProxy__Clusters__control__Destinations__control__Address: http://control:8080/
     ports:
       - "8080:8080"
     depends_on:
@@ -19,7 +21,9 @@ services:
       args:
         PROJECT: Auth.Api
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Database: Host=postgres;Database=${POSTGRES_DB:-metrica_app};Username=${POSTGRES_USER:-metrica};Password=${POSTGRES_PASSWORD:-metrica_dev}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-metrica-local-only-signing-key-at-least-32-bytes}
     depends_on:
       - postgres
 
@@ -35,8 +39,6 @@ services:
       RabbitMQ__User: ${RABBITMQ_DEFAULT_USER:-metrica}
       RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS:-metrica_dev}
       SeaweedFS__FilerUrl: http://seaweedfs:8888
-    ports:
-      - "127.0.0.1:8081:8080"
     depends_on:
       - postgres
       - rabbitmq

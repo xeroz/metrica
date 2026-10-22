@@ -8,10 +8,37 @@ using Control.Api.Infrastructure.Messaging;
 using Control.Api.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+{
+    foreach (var server in document.Servers ?? [])
+        server.Url = server.Url?.TrimEnd('/');
+
+    document.Components ??= new OpenApiComponents();
+    document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+    document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    };
+    foreach (var path in document.Paths.Where(path => path.Key.StartsWith("/cargas", StringComparison.Ordinal)))
+    {
+        if (path.Value.Operations is not { } operations) continue;
+        foreach (var operation in operations.Values)
+            operation.Security =
+            [
+                new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+                }
+            ];
+    }
+    return Task.CompletedTask;
+}));
 builder.Services.AddExceptionHandler<UploadExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.Configure<FormOptions>(options =>

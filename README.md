@@ -11,7 +11,7 @@ This repository contains the .NET 10 foundation for the [senior backend challeng
 | Messaging | RabbitMQ 4, RabbitMQ.Client | Upload and completion queues |
 | File storage | SeaweedFS | Uploaded Excel workbooks |
 | Email | MailKit, Mailpit (local) | Completion notifications and local SMTP testing |
-| API validation and documentation | FluentValidation, OpenAPI, Scalar | Upload validation and the Control API reference |
+| API validation and documentation | FluentValidation, OpenAPI, Scalar | Upload validation and the public gateway API reference |
 | Deployment | Docker, Docker Compose | Local service and infrastructure containers |
 
 ## Current scope
@@ -26,7 +26,7 @@ The solution contains five independent ASP.NET Core processes:
 | `Processing.Worker` | Excel processing and persistence |
 | `Notifications.Worker` | Completion emails and final state update |
 
-`Control.Api` accepts Excel uploads and exposes load status. `Processing.Worker` consumes `carga_masiva`, loads the workbook from SeaweedFS, writes products and failures to PostgreSQL, and publishes completion messages to `notificaciones`. `Notifications.Worker` sends the result by email and marks the load as `Notified`. Gateway routing and authentication remain for later phases. Control applies EF Core migrations on startup to create its `StatusFile` and outbox tables.
+`Auth.Api` stores users and issues JWTs. `Gateway` validates JWTs and routes client requests to Auth or Control. `Control.Api` accepts Excel uploads and exposes load status. `Processing.Worker` consumes `carga_masiva`, loads the workbook from SeaweedFS, writes products and failures to PostgreSQL, and publishes completion messages to `notificaciones`. `Notifications.Worker` sends the result by email and marks the load as `Notified`. Auth and Control apply their EF Core migrations on startup.
 
 `Metrica.Contracts` defines the shared load states. Their numeric values are fixed for persistence and messaging:
 
@@ -58,7 +58,7 @@ To stop and remove the containers created by Compose:
 docker compose down
 ```
 
-The gateway health endpoint is available at `http://localhost:8080/health`. PostgreSQL is exposed on port `5432`, RabbitMQ on `5672`, its management UI on `15672`, and the SeaweedFS filer on `8888`.
+The gateway is available at `http://localhost:8080`. PostgreSQL is exposed on port `5432`, RabbitMQ on `5672`, its management UI on `15672`, and the SeaweedFS filer on `8888`. Auth and Control are reached through the gateway, not through published host ports.
 
 The local SMTP server is Mailpit. Open `http://localhost:8025` to inspect sent emails. To use another SMTP server, set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY` (`None`, `StartTls`, or `SslOnConnect`), `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` in `.env`. The defaults route messages to Mailpit and do not deliver to external inboxes.
 
@@ -66,17 +66,51 @@ For local development, copy `.env.example` to `.env` and edit the credentials be
 
 The default database is `metrica_app`. Existing data in the earlier `metrica` database is left untouched. On a fresh Docker volume, PostgreSQL creates `metrica_app`; on an existing volume, create that database once before starting Control.
 
-To run a single service without Docker:
+To run the gateway without Docker, supply the same signing key used by Auth and run Auth and Control at the addresses configured in `src/Gateway/appsettings.json`:
 
 ```bash
-dotnet run --project src/Gateway --no-launch-profile --urls http://localhost:5000
+Jwt__SigningKey='metrica-local-only-signing-key-at-least-32-bytes' \
+  dotnet run --project src/Gateway --no-launch-profile --urls http://localhost:5000
 ```
 
 ## Next implementation steps
 
-1. Add authentication and gateway routing.
-2. Add authenticated ownership to periods and products if the API needs user-specific catalog views.
-3. Connect the authenticated user to each load instead of accepting a caller-provided email.
+1. Add authenticated ownership to periods and products if the API needs user-specific catalog views.
+2. Connect the authenticated user to each load instead of accepting a caller-provided email.
+
+## Authentication and gateway
+
+`Auth.Api` creates a `users` table with `id`, unique `email`, and `password`. The `password` column contains an ASP.NET Core password hash, never the original password. Users are created explicitly through `POST /auth/register`; startup only applies the database migration. Set `JWT_SIGNING_KEY` in `.env` for your environment. A user created by the earlier bootstrap implementation remains in an existing database until removed separately.
+
+Register a user through the gateway:
+
+```bash
+curl -X POST http://localhost:8080/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@example.com","password":"StrongPass123!"}'
+```
+
+Registration returns HTTP 201 with `id` and `email`, HTTP 409 for an existing email, or HTTP 400 for an invalid email or a password outside 8–128 characters.
+
+Request a one-hour access token through the gateway:
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@example.com","password":"StrongPass123!"}'
+```
+
+The response contains `accessToken`, `tokenType`, and `expiresIn`. Send `Authorization: Bearer <accessToken>` on `POST /cargas` and `GET /cargas/{uniqueIdentifier}`. The gateway validates the JWT signature, issuer, audience, and expiry before forwarding. `GET /health`, `POST /auth/register`, and `POST /auth/login` are public. To check this against a running Compose stack, run `python3 tests/auth_gateway_checks.py`; it creates or reuses `auth-check@metrica.local`.
+
+In local Compose, open `http://localhost:8080/scalar/` to browse both API documents. Both services are accessed through the gateway:
+
+| Service | API base URL | OpenAPI document |
+| --- | --- | --- |
+| `Auth.Api` | `http://localhost:8080/auth` | `http://localhost:8080/auth/openapi/v1.json` |
+| `Control.Api` | `http://localhost:8080/cargas` | `http://localhost:8080/control/openapi/v1.json` |
+
+Registration and login appear in the Autenticación document.
+For uploads in Scalar, select **Cargas**, choose **Bearer** under **Authentication**, and paste the login response's `accessToken` into **Bearer Token** (without the `Bearer ` prefix). Use `http://localhost:8080` as the server.
 
 ## Control upload API
 
@@ -92,9 +126,7 @@ On acceptance, the response is HTTP 200:
 }
 ```
 
-`GET /cargas/{uniqueIdentifier}` returns the current state and original file name, or HTTP 404 when the identifier is unknown. These endpoints currently belong to `Control.Api`; Gateway and JWT integration have not been added yet.
-
-With Compose, the Control API is available locally at `http://localhost:8081`. In Development, its OpenAPI document is at `http://localhost:8081/openapi/v1.json` and the Scalar API reference is at `http://localhost:8081/scalar`.
+`GET /cargas/{uniqueIdentifier}` returns the current state and original file name, or HTTP 404 when the identifier is unknown. Both upload and status requests must go through the gateway with a valid JWT.
 
 The Control code is split into HTTP endpoints, application logic, and infrastructure. The EF Core context, models, and migrations live in `src/Control.Api/Infrastructure/Persistence`; `Program.cs` only wires dependencies and routes. Run the focused upload checks with:
 
