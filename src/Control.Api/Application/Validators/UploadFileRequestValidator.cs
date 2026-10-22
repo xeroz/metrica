@@ -1,8 +1,6 @@
 using System.IO.Compression;
 using Control.Api.Application.Dto;
 using FluentValidation;
-using FluentValidation.Results;
-using Microsoft.AspNetCore.Http;
 
 namespace Control.Api.Application.Validators;
 
@@ -23,32 +21,6 @@ internal sealed class UploadFileRequestValidator : AbstractValidator<UploadFileR
             .Must(file => string.Equals(Path.GetExtension(file!.FileName), ".xlsx", StringComparison.OrdinalIgnoreCase))
                 .WithMessage("Only .xlsx files are accepted.")
             .Must(BeExcelFile).WithMessage("Invalid .xlsx file.");
-    }
-
-    public async Task<(UploadFileRequest Request, ValidationResult Validation)> ValidateRequestAsync(
-        HttpRequest request, CancellationToken cancellationToken)
-    {
-        if (!request.HasFormContentType ||
-            request.ContentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) != true)
-            return (new UploadFileRequest(), new ValidationResult([
-                new ValidationFailure(nameof(UploadFileRequest.Field), "Expected multipart/form-data.")
-            ]));
-
-        IFormCollection form;
-        try { form = await request.ReadFormAsync(cancellationToken); }
-        catch (InvalidDataException)
-        {
-            return (new UploadFileRequest(), new ValidationResult([
-                new ValidationFailure(nameof(UploadFileRequest.Field), "Invalid multipart form.")
-            ]));
-        }
-
-        var uploadRequest = new UploadFileRequest
-        {
-            Field = form.Files.GetFile("field"),
-            Email = form["email"].ToString().Trim()
-        };
-        return (uploadRequest, await ValidateAsync(uploadRequest, cancellationToken));
     }
 
     private static bool BeExcelFile(IFormFile? file)

@@ -1,7 +1,9 @@
 using Control.Api.Application;
+using Control.Api.Application.Filters;
 using Control.Api.Application.Validators;
 using Control.Api.Endpoints;
 using Control.Api.Infrastructure;
+using Control.Api.Infrastructure.Messaging;
 using Control.Api.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +25,7 @@ builder.Services.AddHttpClient<IFileStorage, SeaweedFileStorage>(client =>
 builder.Services.AddSingleton<IStatusFileRepository, StatusFileRepository>();
 builder.Services.AddScoped<UploadService>();
 builder.Services.AddScoped<UploadFileRequestValidator>();
+builder.Services.AddScoped<UploadValidationFilter>();
 builder.Services.AddHostedService<OutboxPublisher>();
 
 var app = builder.Build();

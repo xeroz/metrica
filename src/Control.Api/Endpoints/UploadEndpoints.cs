@@ -1,7 +1,8 @@
 using Control.Api.Application;
 using Control.Api.Application.Dto;
-using Control.Api.Application.Validators;
+using Control.Api.Application.Filters;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
 using Metrica.Contracts;
 using Npgsql;
 
@@ -11,18 +12,9 @@ internal static class UploadEndpoints
 {
     internal static void MapUploadEndpoints(this WebApplication app)
     {
-        app.MapPost("/cargas", async (HttpRequest request, UploadService uploads,
-            UploadFileRequestValidator validator, CancellationToken cancellationToken) =>
+        app.MapPost("/cargas", async ([FromForm] UploadFileRequest uploadRequest, UploadService uploads,
+            CancellationToken cancellationToken) =>
         {
-            var (uploadRequest, validation) = await validator.ValidateRequestAsync(request, cancellationToken);
-            if (!validation.IsValid)
-            {
-                var error = validation.Errors[0];
-                var statusCode = error.ErrorCode == UploadFileRequestValidator.FileTooLargeCode
-                    ? StatusCodes.Status413PayloadTooLarge : StatusCodes.Status400BadRequest;
-                return Results.Json(new { message = error.ErrorMessage }, statusCode: statusCode);
-            }
-
             try
             {
                 await using var stream = uploadRequest.Field!.OpenReadStream();
@@ -35,7 +27,7 @@ internal static class UploadEndpoints
             {
                 return Results.Problem("Upload service is unavailable.", statusCode: 503);
             }
-        }).DisableAntiforgery()
+        }).AddEndpointFilter<UploadValidationFilter>().DisableAntiforgery()
           .Accepts<UploadFileRequest>("multipart/form-data")
           .Produces<UploadAcceptedResponse>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
@@ -57,3 +49,6 @@ internal static class UploadEndpoints
           .WithSummary("Consultar el estado de una carga");
     }
 }
+
+internal sealed record UploadAcceptedResponse(string Message, string Status, Guid UniqueIdentifier);
+internal sealed record UploadStatusResponse(Guid UniqueIdentifier, string Status, string FileName);

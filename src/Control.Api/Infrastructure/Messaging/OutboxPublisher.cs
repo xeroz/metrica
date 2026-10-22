@@ -3,7 +3,7 @@ using Control.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 
-namespace Control.Api.Infrastructure;
+namespace Control.Api.Infrastructure.Messaging;
 
 internal sealed class OutboxPublisher(
     IDbContextFactory<ControlDbContext> contexts,
