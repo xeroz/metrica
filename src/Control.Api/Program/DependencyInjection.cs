@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Npgsql;
 
 namespace Control.Api.Bootstrapping;
 
@@ -25,8 +24,6 @@ internal static class DependencyInjection
         var connectionString = configuration.GetConnectionString("Database")
             ?? throw new InvalidOperationException("ConnectionStrings:Database is required.");
         services.AddDbContextFactory<ControlDbContext>(options => options.UseNpgsql(connectionString));
-        services.AddSingleton(NpgsqlDataSource.Create(connectionString));
-        services.AddSingleton<IUserEmailRepository, UserEmailRepository>();
         services.AddHttpClient<IFileStorage, SeaweedFileStorage>(client =>
             client.BaseAddress = new Uri(configuration["SeaweedFS:FilerUrl"]
                 ?? throw new InvalidOperationException("SeaweedFS:FilerUrl is required.")));

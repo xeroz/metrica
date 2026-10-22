@@ -113,7 +113,7 @@ For uploads in Scalar, select **Cargas**, choose **Bearer** under **Authenticati
 
 ## Control upload API
 
-`POST /cargas` accepts a `multipart/form-data` field named `field`. The notification email and owner ID come from the authenticated user's current record in `users`; a missing user returns HTTP 401. The file must be a non-empty `.xlsx` of at most 5 MiB (5,242,880 bytes). The API checks the workbook container, stores it in SeaweedFS, and inserts a `StatusFile` row with state `Pending`. The upload and an outbox message are committed together; the background publisher retries delivery to RabbitMQ's durable `carga_masiva` queue.
+`POST /cargas` accepts a `multipart/form-data` field named `field`. The notification email and owner ID come from the `email` and `sub` claims of the authenticated JWT; a token missing either claim returns HTTP 401. The file must be a non-empty `.xlsx` of at most 5 MiB (5,242,880 bytes). The API checks the workbook container, stores it in SeaweedFS, and inserts a `StatusFile` row with state `Pending`. The upload and an outbox message are committed together; the background publisher retries delivery to RabbitMQ's durable `carga_masiva` queue.
 
 On acceptance, the response is HTTP 200:
 
@@ -125,7 +125,7 @@ On acceptance, the response is HTTP 200:
 }
 ```
 
-`GET /cargas/{uniqueIdentifier}` returns the current state and original file name only to the user who uploaded it. Unknown identifiers, other users' loads, and loads created before ownership was recorded return HTTP 404. Both upload and status requests require a valid JWT whose user ID still exists in `users`.
+`GET /cargas/{uniqueIdentifier}` returns the current state and original file name only to the user who uploaded it. Unknown identifiers, other users' loads, and loads created before ownership was recorded return HTTP 404. Both upload and status requests require a valid JWT with `sub` and `email` claims. Tokens remain valid until they expire, even if the user is later removed.
 
 The Control code is split into HTTP endpoints, application logic, and infrastructure. The EF Core context, models, and migrations live in `src/Control.Api/Infrastructure/Persistence`; `Program.cs` only wires dependencies and routes. Run the focused upload checks with:
 
