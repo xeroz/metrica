@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 
-namespace Processing.Worker;
+namespace Processing.Worker.Application;
 
 internal sealed record ProductRow(int RowNumber, string Period, string Code, string Name, decimal Price);
 internal sealed record RowFailure(int RowNumber, string? Code, string Reason);

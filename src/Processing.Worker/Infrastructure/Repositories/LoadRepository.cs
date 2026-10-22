@@ -1,22 +1,17 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Metrica.Shared;
+using Processing.Worker.Application;
+using Processing.Worker.Application.Abstractions;
+using Processing.Worker.Application.ReadModels;
 using Processing.Worker.Persistence;
 using Processing.Worker.Persistence.Models;
 
-namespace Processing.Worker;
+namespace Processing.Worker.Infrastructure.Repositories;
 
-internal sealed record PendingNotification(long Id, string Payload);
-
-internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> contexts)
+internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> contexts) : ILoadRepository, INotificationOutbox
 {
-    internal async Task InitializeAsync(CancellationToken token)
-    {
-        await using var context = await contexts.CreateDbContextAsync(token);
-        await context.Database.MigrateAsync(token);
-    }
-
-    internal async Task<LoadStatus?> StartAsync(long loadId, Guid identifier, CancellationToken token)
+    public async Task<LoadStatus?> StartAsync(long loadId, Guid identifier, CancellationToken token)
     {
         await using var context = await contexts.CreateDbContextAsync(token);
         var file = await context.StatusFiles.SingleOrDefaultAsync(
@@ -30,7 +25,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         return file.Status;
     }
 
-    internal async Task SaveRowsAsync(long loadId, WorkbookRows rows, CancellationToken token)
+    public async Task SaveRowsAsync(long loadId, WorkbookRows rows, CancellationToken token)
     {
         await using var context = await contexts.CreateDbContextAsync(token);
         await using var transaction = await context.Database.BeginTransactionAsync(token);
@@ -91,7 +86,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         await transaction.CommitAsync(token);
     }
 
-    internal async Task RejectAsync(long loadId, string reason, CancellationToken token,
+    public async Task RejectAsync(long loadId, string reason, CancellationToken token,
         IReadOnlyList<RowFailure>? rowFailures = null)
     {
         await using var context = await contexts.CreateDbContextAsync(token);
@@ -106,7 +101,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         await FinishAsync(loadId, "Rechazado", token);
     }
 
-    internal async Task FinishAsync(long loadId, string? outcome, CancellationToken token)
+    public async Task FinishAsync(long loadId, string? outcome, CancellationToken token)
     {
         await using var context = await contexts.CreateDbContextAsync(token);
         await using var transaction = await context.Database.BeginTransactionAsync(token);
@@ -138,7 +133,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         await transaction.CommitAsync(token);
     }
 
-    internal async Task<IReadOnlyList<PendingNotification>> PendingNotificationsAsync(CancellationToken token)
+    public async Task<IReadOnlyList<PendingNotification>> PendingNotificationsAsync(CancellationToken token)
     {
         await using var context = await contexts.CreateDbContextAsync(token);
         return await context.NotificationOutbox.AsNoTracking()
@@ -146,7 +141,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
             .Select(item => new PendingNotification(item.Id, item.Payload)).ToListAsync(token);
     }
 
-    internal async Task MarkNotificationSentAsync(long id, CancellationToken token)
+    public async Task MarkNotificationSentAsync(long id, CancellationToken token)
     {
         await using var context = await contexts.CreateDbContextAsync(token);
         var message = await context.NotificationOutbox.SingleOrDefaultAsync(item => item.Id == id, token);

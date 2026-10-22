@@ -1,6 +1,8 @@
-namespace Processing.Worker;
+using Processing.Worker.Application.Abstractions;
 
-internal sealed class WorkbookStorage(HttpClient client)
+namespace Processing.Worker.Infrastructure.Storage;
+
+internal sealed class WorkbookStorage(HttpClient client) : IWorkbookStorage
 {
     public async Task<Stream> OpenAsync(Guid identifier, CancellationToken cancellationToken)
     {

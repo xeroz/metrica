@@ -1,14 +1,15 @@
 using System.Text.Json;
-using Metrica.Shared;
+using Processing.Worker.Application;
+using Processing.Worker.Application.Abstractions;
 using RabbitMQ.Client;
 
-namespace Processing.Worker;
+namespace Processing.Worker.Infrastructure.Messaging;
 
 internal sealed record LoadMessage(long IdCarga, Guid UniqueIdentifier, string RutaArchivo);
 
 internal sealed class ProcessingConsumer(
-    LoadRepository repository,
-    WorkbookStorage storage,
+    ProcessingService processing,
+    IProcessingDbInitializer initializer,
     IConfiguration configuration,
     ILogger<ProcessingConsumer> logger) : BackgroundService
 {
@@ -18,7 +19,7 @@ internal sealed class ProcessingConsumer(
         {
             try
             {
-                await repository.InitializeAsync(stoppingToken);
+                await initializer.InitializeAsync(stoppingToken);
                 await ConsumeAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
@@ -69,7 +70,7 @@ internal sealed class ProcessingConsumer(
 
             try
             {
-                await ProcessAsync(message, token);
+                await processing.ProcessAsync(message.IdCarga, message.UniqueIdentifier, token);
                 await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, token);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -79,44 +80,5 @@ internal sealed class ProcessingConsumer(
                 await Task.Delay(TimeSpan.FromSeconds(5), token);
             }
         }
-    }
-
-    private async Task ProcessAsync(LoadMessage message, CancellationToken token)
-    {
-        var status = await repository.StartAsync(message.IdCarga, message.UniqueIdentifier, token);
-        if (status is null)
-        {
-            logger.LogWarning("Ignoring load {LoadId}: no matching StatusFile", message.IdCarga);
-            return;
-        }
-        if (status is LoadStatus.Completed or LoadStatus.Notified) return;
-        if (status == LoadStatus.Loaded)
-        {
-            await repository.FinishAsync(message.IdCarga, null, token);
-            return;
-        }
-
-        WorkbookRows rows;
-        try
-        {
-            await using var workbook = await storage.OpenAsync(message.UniqueIdentifier, token);
-            rows = WorkbookReader.Read(workbook);
-        }
-        catch (Exception ex) when (ex is InvalidDataException or System.Xml.XmlException
-                                   or InvalidOperationException or FormatException)
-        {
-            await repository.RejectAsync(message.IdCarga, $"Excel inválido: {ex.Message}", token);
-            return;
-        }
-
-        if (rows.Products.Count == 0)
-        {
-            await repository.RejectAsync(message.IdCarga, "El Excel no contiene productos válidos.",
-                token, rows.Failures);
-            return;
-        }
-        await repository.SaveRowsAsync(message.IdCarga, rows, token);
-        await repository.FinishAsync(message.IdCarga, null, token);
-        logger.LogInformation("Load {LoadId} finished", message.IdCarga);
     }
 }

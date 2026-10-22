@@ -1,10 +1,11 @@
 using System.Text;
+using Processing.Worker.Application.Abstractions;
 using RabbitMQ.Client;
 
-namespace Processing.Worker;
+namespace Processing.Worker.Infrastructure.Messaging;
 
 internal sealed class NotificationPublisher(
-    LoadRepository repository,
+    INotificationOutbox repository,
     IConfiguration configuration,
     ILogger<NotificationPublisher> logger) : BackgroundService
 {

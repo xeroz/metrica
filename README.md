@@ -135,6 +135,8 @@ dotnet run --project tests/Control.Api.Checks
 
 ## Processing worker
 
+The worker is organized into application processing and abstractions, infrastructure for RabbitMQ, SeaweedFS, and EF Core, and dependency registration under `Program`. The EF Core context, models, and migrations live in `src/Processing.Worker/Infrastructure/Persistence`.
+
 The worker reads the four columns in the first worksheet of an `.xlsx` file: `Periodo` (`AAAA-MM`), `CodigoProducto`, `NombreProducto`, and `Precio`. It trims values, normalizes product codes to uppercase, uses `Sin nombre` for an empty name and `0` for an empty price, and ignores blank rows. Distinct periods are stored in `period` and distinct codes in `code`; later loads reuse either catalog entry. Each valid combination is stored in `product` with foreign keys to both catalogs. A code may occur in multiple periods or products. Only rows identical in all four normalized fields are skipped and recorded in `processing_failure`, along with invalid rows. This row-level rule differs from the challenge's explicit duplicate-code rule.
 
 For an accepted load, the `StatusFile` state moves through `InProgress`, `Loaded`, and `Completed`. Invalid workbooks move from `InProgress` to `Completed` with a `Rechazado` result. The outcome and counts are stored in `processing_result`, separately from the state. The worker uses EF Core models and applies its own migration after the Control migration is available; it maps Control's `StatusFile` without recreating it. It retries transient failures and uses a PostgreSQL notification outbox so a RabbitMQ outage does not lose completion messages. The notification consumer changes the state to `Notified` only after SMTP accepts the email.
