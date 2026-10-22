@@ -115,13 +115,6 @@ internal sealed class ProcessingConsumer(
                 token, rows.Failures);
             return;
         }
-        var collision = await repository.ReservePeriodsAsync(message.IdCarga,
-            rows.Products.Select(row => row.Period), token);
-        if (collision is not null)
-        {
-            await repository.RejectAsync(message.IdCarga, collision, token);
-            return;
-        }
         await repository.SaveRowsAsync(message.IdCarga, rows, token);
         await repository.FinishAsync(message.IdCarga, null, token);
         logger.LogInformation("Load {LoadId} finished", message.IdCarga);

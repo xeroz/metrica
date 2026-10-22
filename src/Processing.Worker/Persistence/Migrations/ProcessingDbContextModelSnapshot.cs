@@ -52,12 +52,53 @@ namespace Processing.Worker.Persistence.Migrations
                     b.ToTable("notification_outbox", (string)null);
                 });
 
+            modelBuilder.Entity("Processing.Worker.Persistence.Models.Period", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("period", (string)null);
+                });
+
             modelBuilder.Entity("Processing.Worker.Persistence.Models.ProcessedProduct", b =>
                 {
-                    b.Property<string>("Code")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("code");
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CodeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("code_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
 
                     b.Property<long>("LoadId")
                         .HasColumnType("bigint")
@@ -65,15 +106,13 @@ namespace Processing.Worker.Persistence.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
-                    b.Property<string>("Period")
-                        .IsRequired()
-                        .HasMaxLength(7)
-                        .HasColumnType("character varying(7)")
-                        .HasColumnName("period");
+                    b.Property<long>("PeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("period_id");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("numeric(18,2)")
@@ -83,11 +122,21 @@ namespace Processing.Worker.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("row_number");
 
-                    b.HasKey("Code");
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
 
-                    b.HasIndex("LoadId");
+                    b.HasKey("Id");
 
-                    b.ToTable("processed_product", (string)null);
+                    b.HasIndex("CodeId");
+
+                    b.HasIndex("LoadId", "RowNumber")
+                        .IsUnique();
+
+                    b.HasIndex("PeriodId", "CodeId", "Name", "Price")
+                        .IsUnique();
+
+                    b.ToTable("product", (string)null);
                 });
 
             modelBuilder.Entity("Processing.Worker.Persistence.Models.ProcessingFailure", b =>
@@ -128,24 +177,6 @@ namespace Processing.Worker.Persistence.Migrations
                     b.ToTable("processing_failure", (string)null);
                 });
 
-            modelBuilder.Entity("Processing.Worker.Persistence.Models.ProcessingPeriod", b =>
-                {
-                    b.Property<string>("Period")
-                        .HasMaxLength(7)
-                        .HasColumnType("character varying(7)")
-                        .HasColumnName("period");
-
-                    b.Property<long>("LoadId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("load_id");
-
-                    b.HasKey("Period");
-
-                    b.HasIndex("LoadId");
-
-                    b.ToTable("processing_period", (string)null);
-                });
-
             modelBuilder.Entity("Processing.Worker.Persistence.Models.ProcessingResult", b =>
                 {
                     b.Property<long>("LoadId")
@@ -172,6 +203,37 @@ namespace Processing.Worker.Persistence.Migrations
                     b.HasKey("LoadId");
 
                     b.ToTable("processing_result", (string)null);
+                });
+
+            modelBuilder.Entity("Processing.Worker.Persistence.Models.ProductCode", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("code", (string)null);
                 });
 
             modelBuilder.Entity("Processing.Worker.Persistence.Models.StatusFileRow", b =>
@@ -218,23 +280,30 @@ namespace Processing.Worker.Persistence.Migrations
 
             modelBuilder.Entity("Processing.Worker.Persistence.Models.ProcessedProduct", b =>
                 {
+                    b.HasOne("Processing.Worker.Persistence.Models.ProductCode", "Code")
+                        .WithMany()
+                        .HasForeignKey("CodeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Processing.Worker.Persistence.Models.StatusFileRow", null)
                         .WithMany()
                         .HasForeignKey("LoadId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Processing.Worker.Persistence.Models.Period", "Period")
+                        .WithMany()
+                        .HasForeignKey("PeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Code");
+
+                    b.Navigation("Period");
                 });
 
             modelBuilder.Entity("Processing.Worker.Persistence.Models.ProcessingFailure", b =>
-                {
-                    b.HasOne("Processing.Worker.Persistence.Models.StatusFileRow", null)
-                        .WithMany()
-                        .HasForeignKey("LoadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Processing.Worker.Persistence.Models.ProcessingPeriod", b =>
                 {
                     b.HasOne("Processing.Worker.Persistence.Models.StatusFileRow", null)
                         .WithMany()

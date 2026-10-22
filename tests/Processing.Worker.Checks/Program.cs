@@ -75,23 +75,31 @@ await using (var context = await contexts.CreateDbContextAsync())
 }
 if (await repository.StartAsync(1001, firstIdentifier, CancellationToken.None) != EstadoCarga.InProgress)
     throw new Exception("Load did not enter InProgress.");
-if (await repository.ReservePeriodsAsync(1001, ["2025-02"], CancellationToken.None) is not null)
-    throw new Exception("Available period was rejected.");
 await repository.SaveRowsAsync(1001, new WorkbookRows(
     [new ProductRow(2, "2025-02", "P001", "Producto", 12.50m),
-     new ProductRow(3, "2025-02", "P001", "Producto", 12.50m)],
-    [new RowFailure(4, "P002", "Precio inválido.")]), CancellationToken.None);
+     new ProductRow(3, "2025-02", "P001", "Producto", 14.00m),
+     new ProductRow(4, "2025-02", "P001", "Producto", 12.50m),
+     new ProductRow(5, "2025-03", "P001", "Producto", 12.50m)],
+    [new RowFailure(6, "P002", "Precio inválido.")]), CancellationToken.None);
 await repository.FinishAsync(1001, null, CancellationToken.None);
-if (await repository.StartAsync(1002, secondIdentifier, CancellationToken.None) != EstadoCarga.InProgress ||
-    await repository.ReservePeriodsAsync(1002, ["2025-02"], CancellationToken.None) is not { } reason ||
-    !reason.Contains("ya fue cargado"))
-    throw new Exception("Duplicate period was not rejected.");
-await repository.RejectAsync(1002, reason, CancellationToken.None);
+if (await repository.StartAsync(1002, secondIdentifier, CancellationToken.None) != EstadoCarga.InProgress)
+    throw new Exception("Second load did not enter InProgress.");
+await repository.SaveRowsAsync(1002, new WorkbookRows(
+    [new ProductRow(2, "2025-02", "P001", "Otro producto", 12.50m),
+     new ProductRow(3, "2025-04", "P002", "Producto nuevo", 20.00m),
+     new ProductRow(4, "2025-02", "P001", "Producto", 12.50m)],
+    []), CancellationToken.None);
+await repository.FinishAsync(1002, null, CancellationToken.None);
 await using (var context = await contexts.CreateDbContextAsync())
 {
     var first = await context.Results.SingleAsync(item => item.LoadId == 1001);
     var second = await context.Results.SingleAsync(item => item.LoadId == 1002);
-    if (first.InsertedCount != 1 || first.FailedCount != 2 || second.Outcome != "Rechazado" ||
+    if (first.InsertedCount != 3 || first.FailedCount != 2 ||
+        second.InsertedCount != 2 || second.FailedCount != 1 ||
+        await context.Codes.CountAsync() != 2 || await context.Periods.CountAsync() != 3 ||
+        await context.Products.CountAsync(item => item.LoadId == 1001 && item.Code.Name == "P001") != 3 ||
+        await context.Products.CountAsync(item => item.LoadId == 1002 && item.Code.Name == "P001" && item.Period.Name == "2025-02") != 1 ||
+        await context.Failures.CountAsync(item => item.LoadId == 1001 && item.Reason.StartsWith("Duplicado")) != 1 ||
         await context.NotificationOutbox.CountAsync() != 2 ||
         await context.StatusFiles.CountAsync(item => item.Status == EstadoCarga.Completed) != 2)
         throw new Exception("Persistence, audit, state, or notification outbox failed.");

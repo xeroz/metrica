@@ -75,7 +75,7 @@ dotnet run --project src/Gateway --no-launch-profile --urls http://localhost:500
 ## Next implementation steps
 
 1. Add authentication and gateway routing.
-2. Agree on period reservation rules: the sample workbook contains multiple periods in one file.
+2. Add authenticated ownership to periods and products if the API needs user-specific catalog views.
 3. Connect the authenticated user to each load instead of accepting a caller-provided email.
 
 ## Control upload API
@@ -104,9 +104,9 @@ dotnet run --project tests/Control.Api.Checks
 
 ## Processing worker
 
-The worker reads the four columns in the first worksheet of an `.xlsx` file: `Periodo` (`AAAA-MM`), `CodigoProducto`, `NombreProducto`, and `Precio`. It trims values, normalizes product codes to uppercase, uses `Sin nombre` for an empty name and `0` for an empty price, and ignores blank rows. Invalid rows and existing product codes are recorded in `processing_failure`; products are stored in `processed_product`. Product codes are unique across all loads. The reference workbook contains multiple periods, so the worker reserves every distinct period in one load. A later load containing any reserved period is rejected and audited.
+The worker reads the four columns in the first worksheet of an `.xlsx` file: `Periodo` (`AAAA-MM`), `CodigoProducto`, `NombreProducto`, and `Precio`. It trims values, normalizes product codes to uppercase, uses `Sin nombre` for an empty name and `0` for an empty price, and ignores blank rows. Distinct periods are stored in `period` and distinct codes in `code`; later loads reuse either catalog entry. Each valid combination is stored in `product` with foreign keys to both catalogs. A code may occur in multiple periods or products. Only rows identical in all four normalized fields are skipped and recorded in `processing_failure`, along with invalid rows. This row-level rule differs from the challenge's explicit duplicate-code rule.
 
-For an accepted load, the `StatusFile` state moves through `InProgress`, `Loaded`, and `Completed`. Invalid workbooks and period conflicts move from `InProgress` to `Completed` with a `Rechazado` result. The outcome and counts are stored in `processing_result`, separately from the state. The worker uses EF Core models and applies its own migration after the Control migration is available; it maps Control's `StatusFile` without recreating it. It retries transient failures and uses a PostgreSQL notification outbox so a RabbitMQ outage does not lose completion messages. The notification consumer changes the state to `Notified` only after SMTP accepts the email.
+For an accepted load, the `StatusFile` state moves through `InProgress`, `Loaded`, and `Completed`. Invalid workbooks move from `InProgress` to `Completed` with a `Rechazado` result. The outcome and counts are stored in `processing_result`, separately from the state. The worker uses EF Core models and applies its own migration after the Control migration is available; it maps Control's `StatusFile` without recreating it. It retries transient failures and uses a PostgreSQL notification outbox so a RabbitMQ outage does not lose completion messages. The notification consumer changes the state to `Notified` only after SMTP accepts the email.
 
 The durable `notificaciones` queue receives JSON with `idCarga`, `fechaFin`, `resultado`, `insertados`, and `fallidos`. The consumer retrieves the recipient from `StatusFile`, sends a plain-text email with MailKit, and acknowledges the message after updating the state. Delivery is at least once: a crash after SMTP accepts a message but before the database update can send a duplicate. Loads created before the email migration have no recipient and cannot be emailed automatically.
 

@@ -30,29 +30,6 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         return file.Status;
     }
 
-    internal async Task<string?> ReservePeriodsAsync(long loadId, IEnumerable<string> periods, CancellationToken token)
-    {
-        var requested = periods.Distinct().ToArray();
-        await using var context = await contexts.CreateDbContextAsync(token);
-        await using var transaction = await context.Database.BeginTransactionAsync(token);
-        var reserved = await context.Periods.AsNoTracking()
-            .Where(item => requested.Contains(item.Period)).ToListAsync(token);
-        var other = reserved.FirstOrDefault(item => item.LoadId != loadId);
-        if (other is not null)
-        {
-            var status = await context.StatusFiles.AsNoTracking()
-                .Where(item => item.Id == other.LoadId).Select(item => item.Status).SingleAsync(token);
-            return status is EstadoCarga.Pending or EstadoCarga.InProgress
-                ? $"Periodo {other.Period} bloqueado por otra carga activa."
-                : $"Periodo {other.Period} ya fue cargado.";
-        }
-        foreach (var period in requested.Except(reserved.Select(item => item.Period)))
-            context.Periods.Add(new ProcessingPeriod { Period = period, LoadId = loadId });
-        await context.SaveChangesAsync(token);
-        await transaction.CommitAsync(token);
-        return null;
-    }
-
     internal async Task SaveRowsAsync(long loadId, WorkbookRows rows, CancellationToken token)
     {
         await using var context = await contexts.CreateDbContextAsync(token);
@@ -61,11 +38,33 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         if (file.Status != EstadoCarga.InProgress)
             throw new InvalidOperationException("Load state changed during processing.");
 
-        var codes = rows.Products.Select(item => item.Code).Distinct().ToArray();
-        var existingCodes = await context.Products.AsNoTracking()
-            .Where(item => codes.Contains(item.Code))
-            .Select(item => item.Code).ToListAsync(token);
-        var seenCodes = existingCodes.ToHashSet(StringComparer.Ordinal);
+        var periodNames = rows.Products.Select(item => item.Period).Distinct().ToArray();
+        var codeNames = rows.Products.Select(item => item.Code).Distinct().ToArray();
+        var periods = await context.Periods.Where(item => periodNames.Contains(item.Name))
+            .ToDictionaryAsync(item => item.Name, token);
+        var codes = await context.Codes.Where(item => codeNames.Contains(item.Name))
+            .ToDictionaryAsync(item => item.Name, token);
+        var now = DateTimeOffset.UtcNow;
+        foreach (var name in periodNames)
+            if (!periods.ContainsKey(name))
+            {
+                var period = new Period { Name = name, CreatedAt = now, UpdatedAt = now };
+                periods.Add(name, period);
+                context.Periods.Add(period);
+            }
+        foreach (var name in codeNames)
+            if (!codes.ContainsKey(name))
+            {
+                var code = new ProductCode { Name = name, CreatedAt = now, UpdatedAt = now };
+                codes.Add(name, code);
+                context.Codes.Add(code);
+            }
+
+        var existingRows = await context.Products.AsNoTracking()
+            .Where(item => periodNames.Contains(item.Period.Name) && codeNames.Contains(item.Code.Name))
+            .Select(item => new { Period = item.Period.Name, Code = item.Code.Name, item.Name, item.Price })
+            .ToListAsync(token);
+        var seenRows = existingRows.Select(item => (item.Period, item.Code, item.Name, item.Price)).ToHashSet();
         var existingFailures = await context.Failures.AsNoTracking()
             .Where(item => item.LoadId == loadId)
             .Select(item => new { item.RowNumber, item.Reason }).ToListAsync(token);
@@ -74,16 +73,17 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
             AddFailure(context, seenFailures, loadId, failure);
         foreach (var row in rows.Products)
         {
-            if (!seenCodes.Add(row.Code))
+            if (!seenRows.Add((row.Period, row.Code, row.Name, row.Price)))
             {
                 AddFailure(context, seenFailures, loadId,
-                    new(row.RowNumber, row.Code, "Existente: CodigoProducto duplicado."));
+                    new(row.RowNumber, row.Code, "Duplicado: período, código, nombre y precio ya registrados."));
                 continue;
             }
             context.Products.Add(new ProcessedProduct
             {
-                Code = row.Code, Name = row.Name, Price = row.Price,
-                Period = row.Period, LoadId = loadId, RowNumber = row.RowNumber
+                Code = codes[row.Code], Period = periods[row.Period],
+                Name = row.Name, Price = row.Price, CreatedAt = now, UpdatedAt = now,
+                LoadId = loadId, RowNumber = row.RowNumber
             });
         }
         file.Status = EstadoCarga.Loaded;
