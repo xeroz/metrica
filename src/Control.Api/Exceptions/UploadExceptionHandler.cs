@@ -9,9 +9,7 @@ internal sealed class UploadExceptionHandler : IExceptionHandler
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception,
         CancellationToken cancellationToken)
     {
-        if (exception is not UploadUnavailableException &&
-            !(exception is IOException && HttpMethods.IsPost(context.Request.Method) &&
-              context.Request.Path == "/cargas")) return false;
+        if (exception is not UploadUnavailableException) return false;
 
         await Results.Problem("Upload service is unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable)
             .ExecuteAsync(context);
