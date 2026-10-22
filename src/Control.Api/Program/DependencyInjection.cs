@@ -5,7 +5,7 @@ using Control.Api.Application.Validators;
 using Control.Api.Infrastructure.Messaging;
 using Control.Api.Infrastructure.Persistence;
 using Control.Api.Infrastructure.Repositories;
-using Control.Api.Infrastructure.Storage.Providers;
+using Control.Api.Infrastructure.Storage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;

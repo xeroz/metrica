@@ -1,4 +1,4 @@
-using Control.Api.Application.Models;
+using Control.Api.Application.ReadModels;
 
 namespace Control.Api.Application.Abstractions;
 

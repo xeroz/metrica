@@ -1,5 +1,5 @@
-using Control.Api.Application;
 using Control.Api.Application.Abstractions;
+using Control.Api.Application.Exceptions;
 using Npgsql;
 
 namespace Control.Api.Infrastructure.Repositories;

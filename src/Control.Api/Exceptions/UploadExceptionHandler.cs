@@ -1,4 +1,4 @@
-using Control.Api.Application;
+using Control.Api.Application.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 
