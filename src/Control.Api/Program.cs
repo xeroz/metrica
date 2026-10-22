@@ -3,7 +3,6 @@ using Control.Api.Bootstrapping;
 using Control.Api.Endpoints;
 using Control.Api.Exceptions;
 using Scalar.AspNetCore;
-
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControlOpenApi();
 builder.Services.AddExceptionHandler<UploadExceptionHandler>();
@@ -17,7 +16,7 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
-await app.Services.GetRequiredService<IStatusFileRepository>().InitializeAsync();
+await app.Services.GetRequiredService<IControlDbInitializer>().InitializeAsync();
 
 if (app.Environment.IsDevelopment())
 {

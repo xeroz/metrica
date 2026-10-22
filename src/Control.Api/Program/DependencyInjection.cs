@@ -31,6 +31,7 @@ internal static class DependencyInjection
             client.BaseAddress = new Uri(configuration["SeaweedFS:FilerUrl"]
                 ?? throw new InvalidOperationException("SeaweedFS:FilerUrl is required.")));
         services.AddSingleton<IStatusFileRepository, StatusFileRepository>();
+        services.AddSingleton<IControlDbInitializer, ControlDbInitializer>();
         services.AddHostedService<OutboxPublisher>();
         return services;
     }

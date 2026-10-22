@@ -12,12 +12,6 @@ namespace Control.Api.Infrastructure.Repositories;
 
 internal sealed class StatusFileRepository(IDbContextFactory<ControlDbContext> contexts) : IStatusFileRepository
 {
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
-    {
-        await using var context = await contexts.CreateDbContextAsync(cancellationToken);
-        await context.Database.MigrateAsync(cancellationToken);
-    }
-
     public async Task RegisterAsync(Guid identifier, string fileName, string storagePath, string email, long userId,
         CancellationToken cancellationToken)
     {
