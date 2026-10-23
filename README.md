@@ -1,5 +1,7 @@
 # Metrica
 
+> 📹 **DEMO VIDEO:** The video: https://drive.google.com/file/d/16FdTCiqOkA7MXu8-yfeFm6ug0zsqDMNZ/view?usp=sharing
+
 Mass upload service for Excel workbooks. The gateway exposes authentication and upload APIs; background workers process workbooks and send completion emails.
 
 ## Technology stack
@@ -47,24 +49,6 @@ Local URLs:
 | RabbitMQ management | `http://localhost:15672` |
 
 To use the API endpoints in Postman, choose **Import → File** and select [`metrica.postman_collection.json`](metrica.postman_collection.json).
-
-## Try authentication
-
-Register a user, then log in with the same credentials:
-
-```bash
-curl -X POST http://localhost:8080/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"user@example.com","password":"StrongPass123!"}'
-
-curl -X POST http://localhost:8080/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"user@example.com","password":"StrongPass123!"}'
-```
-
-In Postman, select **POST**, choose **Body → raw → JSON**, and use the same JSON body. Opening `/auth/login` as a GET request returns `405 Method Not Allowed`.
-
-Stop the stack with `docker compose down`. To build the solution outside Docker, install the .NET 10 SDK and run `dotnet build Metrica.slnx`.
 
 ## Project structure
 

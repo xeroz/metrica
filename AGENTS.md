@@ -14,34 +14,7 @@ Here is the updated guide with the SOLID principles and architectural guidelines
 * **API validation and documentation:** FluentValidation, OpenAPI, and Scalar.
 * **Local deployment:** Docker and Docker Compose.
 
-## Architectural Principles (SOLID)
-
-When designing, refactoring, or writing code across this multi-project repository, you must strictly adhere to the SOLID principles and clean architecture best practices:
-
-1. **S - Single Responsibility Principle (SRP):**
-* Every class, service, or component must have one, and only one, reason to change.
-* Strictly separate concerns: business logic, data access (EF Core 10), validation (FluentValidation), messaging (RabbitMQ), and HTTP request handling (Controllers/Endpoints) must reside in distinct components. Avoid "God Objects".
-
-
-2. **O - Open/Closed Principle (OCP):**
-* Entities, modules, and classes must be open for extension, but closed for modification.
-* Use interfaces, abstract classes, and design patterns (such as Strategy or Factory) to allow adding new features by writing new code rather than altering existing, working code.
-
-
-3. **L - Liskov Substitution Principle (LSP):**
-* Subtypes or class implementations must be substitutable for their base types/interfaces without altering system correctness.
-* Never throw `NotImplementedException` when implementing interface contracts, and do not alter expected preconditions or postconditions.
-
-
-4. **I - Interface Segregation Principle (ISP):**
-* Prefer multiple small, client-specific interfaces over a single large, monolithic interface.
-* No class should be forced to depend on methods, properties, or contracts it does not use.
-
-
-5. **D - Dependency Inversion Principle (DIP):**
-* High-level modules (e.g., Domain or Application layers) must not depend on low-level modules (e.g., EF Core, SeaweedFS, or RabbitMQ implementations); both must depend on abstractions.
-* Always code against interfaces. Leverage .NET 10's native Dependency Injection container (`IServiceCollection`) to register services with appropriate lifetimes (`Transient`, `Scoped`, or `Singleton`).
-
+## Architectural Principles
 
 6. **Technical & Modern C# Best Practices:**
 * Utilize modern C# features effectively (e.g., primary constructors, records, pattern matching, and strict nullable reference types).
