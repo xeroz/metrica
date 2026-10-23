@@ -46,6 +46,8 @@ Local URLs:
 | Mailpit inbox | `http://localhost:8025` |
 | RabbitMQ management | `http://localhost:15672` |
 
+To use the API endpoints in Postman, choose **Import → File** and select [`metrica.postman_collection.json`](metrica.postman_collection.json).
+
 ## Try authentication
 
 Register a user, then log in with the same credentials:
