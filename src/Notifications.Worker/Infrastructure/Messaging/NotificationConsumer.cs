@@ -49,7 +49,7 @@ internal sealed class NotificationConsumer(IConfiguration configuration, Notific
                 message = JsonSerializer.Deserialize<CompletionMessage>(delivery.Body.Span,
                     new JsonSerializerOptions(JsonSerializerDefaults.Web));
                 if (message is null || message.IdCarga <= 0 || string.IsNullOrWhiteSpace(message.Resultado) ||
-                    message.Insertados < 0 || message.Fallidos < 0)
+                    message.Insertados < 0 || message.Existentes < 0 || message.Fallidos < 0)
                     throw new JsonException("Invalid completion message.");
             }
             catch (JsonException ex)

@@ -17,7 +17,8 @@ internal sealed class NotificationEmailFactory(IConfiguration configuration)
         mail.Body = new TextPart("plain")
         {
             Text = $"Tu carga {message.IdCarga} finalizó el {message.FechaFin:yyyy-MM-dd HH:mm:ss} UTC.\n" +
-                   $"Resultado: {message.Resultado}\nInsertados: {message.Insertados}\nFallidos: {message.Fallidos}."
+                   $"Resultado: {message.Resultado}\nInsertados: {message.Insertados}\n" +
+                   $"Registros ya existentes: {message.Existentes}\nFallidos: {message.Fallidos}."
         };
         return mail;
     }

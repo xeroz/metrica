@@ -9,6 +9,7 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
     internal DbSet<Period> Periods => Set<Period>();
     internal DbSet<ProductCode> Codes => Set<ProductCode>();
     internal DbSet<ProcessedProduct> Products => Set<ProcessedProduct>();
+    internal DbSet<ExistingProduct> ExistingProducts => Set<ExistingProduct>();
     internal DbSet<ProcessingFailure> Failures => Set<ProcessingFailure>();
     internal DbSet<ProcessingResult> Results => Set<ProcessingResult>();
     internal DbSet<NotificationOutboxMessage> NotificationOutbox => Set<NotificationOutboxMessage>();
@@ -82,6 +83,19 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
             entity.HasOne<StatusFileRow>().WithMany().HasForeignKey(item => item.LoadId);
         });
 
+        modelBuilder.Entity<ExistingProduct>(entity =>
+        {
+            entity.ToTable("processing_existing");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            entity.Property(item => item.LoadId).HasColumnName("load_id");
+            entity.Property(item => item.RowNumber).HasColumnName("row_number");
+            entity.Property(item => item.Code).HasColumnName("code");
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(item => new { item.LoadId, item.RowNumber }).IsUnique();
+            entity.HasOne<StatusFileRow>().WithMany().HasForeignKey(item => item.LoadId);
+        });
+
         modelBuilder.Entity<ProcessingResult>(entity =>
         {
             entity.ToTable("processing_result");
@@ -89,6 +103,7 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
             entity.Property(item => item.LoadId).HasColumnName("load_id");
             entity.Property(item => item.Outcome).HasColumnName("outcome");
             entity.Property(item => item.InsertedCount).HasColumnName("inserted_count");
+            entity.Property(item => item.ExistingCount).HasColumnName("existing_count");
             entity.Property(item => item.FailedCount).HasColumnName("failed_count");
             entity.Property(item => item.CompletedAt).HasColumnName("completed_at");
             entity.HasOne<StatusFileRow>().WithOne().HasForeignKey<ProcessingResult>(item => item.LoadId);

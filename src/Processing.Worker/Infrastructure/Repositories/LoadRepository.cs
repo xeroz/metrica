@@ -64,14 +64,19 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
             .Where(item => item.LoadId == loadId)
             .Select(item => new { item.RowNumber, item.Reason }).ToListAsync(token);
         var seenFailures = existingFailures.Select(item => (item.RowNumber, item.Reason)).ToHashSet();
+        var seenExisting = (await context.ExistingProducts.AsNoTracking()
+            .Where(item => item.LoadId == loadId).Select(item => item.RowNumber).ToListAsync(token)).ToHashSet();
         foreach (var failure in rows.Failures)
             AddFailure(context, seenFailures, loadId, failure);
         foreach (var row in rows.Products)
         {
             if (!seenRows.Add((row.Period, row.Code, row.Name, row.Price)))
             {
-                AddFailure(context, seenFailures, loadId,
-                    new(row.RowNumber, row.Code, "Duplicado: período, código, nombre y precio ya registrados."));
+                if (seenExisting.Add(row.RowNumber))
+                    context.ExistingProducts.Add(new ExistingProduct
+                    {
+                        LoadId = loadId, RowNumber = row.RowNumber, Code = row.Code, CreatedAt = now
+                    });
                 continue;
             }
             context.Products.Add(new ProcessedProduct
@@ -108,6 +113,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         if (await context.Results.AnyAsync(item => item.LoadId == loadId, token)) return;
 
         var inserted = await context.Products.CountAsync(item => item.LoadId == loadId, token);
+        var existing = await context.ExistingProducts.CountAsync(item => item.LoadId == loadId, token);
         var failed = await context.Failures.CountAsync(item => item.LoadId == loadId, token);
         outcome ??= failed == 0 ? "Completado" : "CompletadoConErrores";
         var finishedAt = DateTimeOffset.UtcNow;
@@ -117,7 +123,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
         file.Status = LoadStatus.Completed;
         context.Results.Add(new ProcessingResult
         {
-            LoadId = loadId, Outcome = outcome, InsertedCount = inserted,
+            LoadId = loadId, Outcome = outcome, InsertedCount = inserted, ExistingCount = existing,
             FailedCount = failed, CompletedAt = finishedAt
         });
         context.NotificationOutbox.Add(new NotificationOutboxMessage
@@ -126,7 +132,7 @@ internal sealed class LoadRepository(IDbContextFactory<ProcessingDbContext> cont
             Payload = JsonSerializer.Serialize(new
             {
                 idCarga = loadId, fechaFin = finishedAt, resultado = outcome,
-                insertados = inserted, fallidos = failed
+                insertados = inserted, existentes = existing, fallidos = failed
             })
         });
         await context.SaveChangesAsync(token);
