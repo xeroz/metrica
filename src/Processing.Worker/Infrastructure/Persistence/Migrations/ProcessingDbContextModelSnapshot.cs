@@ -8,7 +8,7 @@ using Processing.Worker.Persistence;
 
 #nullable disable
 
-namespace Processing.Worker.Persistence.Migrations
+namespace Processing.Worker.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ProcessingDbContext))]
     partial class ProcessingDbContextModelSnapshot : ModelSnapshot
@@ -21,6 +21,40 @@ namespace Processing.Worker.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Processing.Worker.Persistence.Models.ExistingProduct", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("LoadId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("load_id");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("row_number");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoadId", "RowNumber")
+                        .IsUnique();
+
+                    b.ToTable("processing_existing", (string)null);
+                });
 
             modelBuilder.Entity("Processing.Worker.Persistence.Models.NotificationOutboxMessage", b =>
                 {
@@ -187,6 +221,10 @@ namespace Processing.Worker.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("completed_at");
 
+                    b.Property<int>("ExistingCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("existing_count");
+
                     b.Property<int>("FailedCount")
                         .HasColumnType("integer")
                         .HasColumnName("failed_count");
@@ -267,6 +305,15 @@ namespace Processing.Worker.Persistence.Migrations
                         {
                             t.ExcludeFromMigrations();
                         });
+                });
+
+            modelBuilder.Entity("Processing.Worker.Persistence.Models.ExistingProduct", b =>
+                {
+                    b.HasOne("Processing.Worker.Persistence.Models.StatusFileRow", null)
+                        .WithMany()
+                        .HasForeignKey("LoadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Processing.Worker.Persistence.Models.NotificationOutboxMessage", b =>

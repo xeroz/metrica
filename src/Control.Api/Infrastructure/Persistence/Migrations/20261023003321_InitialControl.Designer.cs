@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Control.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ControlDbContext))]
-    [Migration("20261022132041_AddNotificationEmail")]
-    partial class AddNotificationEmail
+    [Migration("20261023003321_InitialControl")]
+    partial class InitialControl
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -74,6 +74,10 @@ namespace Control.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("UniqueIdentifier")
                         .HasColumnType("uuid")
                         .HasColumnName("unique_identifier");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
 
                     b.HasKey("Id");
 

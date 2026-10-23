@@ -34,6 +34,8 @@ namespace Control.Api.Infrastructure.Persistence.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityAlwaysColumn),
                     status = table.Column<short>(type: "smallint", nullable: false),
                     file_name = table.Column<string>(type: "text", nullable: false),
+                    email = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: true),
+                    user_id = table.Column<long>(type: "bigint", nullable: true),
                     unique_identifier = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
